@@ -10,12 +10,19 @@
 
 
 (require 'package)
+
+(add-to-list 'package-archives
+             '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
 (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/"))
 (add-to-list 'package-archives '("marmalade" . "https://marmalade-repo.org/packages/"))
-;;(add-to-list 'package-archives '("org" . "http://orgmode.org/elpa/"))
 
-;;(tool-bar-mode -1)
+(package-initialize)
+
+(when (not package-archive-contents)
+  (package-refresh-contents))
+
+(tool-bar-mode -1)
 
 ;;;;org-mode configuration
 ;; Enable org-mode
@@ -27,5 +34,9 @@
 (setq inhibit-splash-screen t
       initial-scratch-message nil
       ring-bell-function 'ignore)
+
+(setq racket-program "~/dev/racket/bin/racket")
+
+(display-time-mode 1)
 
 (server-start)
