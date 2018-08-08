@@ -23,6 +23,10 @@
 (when (not package-archive-contents)
   (package-refresh-contents))
 
+(setq inhibit-splash-screen t
+      initial-scratch-message nil
+      ring-bell-function 'ignore)
+
 (tool-bar-mode -1)
 
 ;;;;org-mode configuration
@@ -41,24 +45,18 @@
 
 (setq org-log-done t)
 
-(setq inhibit-splash-screen t
-      initial-scratch-message nil
-      ring-bell-function 'ignore)
-
-
 ;;;;; Racket Mode
 (setq racket-program "/path/to/racket/executable/racket")
 
-;;;;;;;C mode
+;;;;;;;C mode, set tabs to 4
 (setq-default c-basic-offset 4)
-
 
 (display-time-mode 1)
 
-(setq line-move-visual t)
-
-
 (server-start)
+
+;;word-wrapped all documents
+(global-visual-line-mode t)
 
 ;;https://www.kernel.org/doc/html/v4.10/process/coding-style.html
 (defun c-lineup-arglist-tabs-only (ignored)
@@ -91,6 +89,7 @@
                 (setq show-trailing-whitespace t)
                 (c-set-style "linux-tabs-only")))))
 
+
 ;; Show system-name and the full path of the buffer your currently editing.
 ;; https://stackoverflow.com/questions/3669511/the-function-to-show-current-files-full-path-in-mini-buffer
 (setq frame-title-format
@@ -98,7 +97,10 @@
 	    '(buffer-file-name "%f" (dired-directory dired-directory "%b"))))
 
 ;; Display Visited File's Path in the Frame Title
+;: http://emacsredux.com/blog/2013/04/07/display-visited-files-path-in-the-frame-title/
 ;(setq frame-title-format
- ;     '((:eval (if (buffer-file-name)
+;     '((:eval (if (buffer-file-name)
 ;		   (abbreviate-file-name (buffer-file-name)) 
 ;		 "%b"))))
+
+
