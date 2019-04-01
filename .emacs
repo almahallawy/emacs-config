@@ -8,6 +8,13 @@
 (global-set-key "\C-x\C-k" 'kill-region)
 (global-set-key "\C-c\C-k" 'kill-region)
 
+;; map C-x b  to f1
+;(global-set-key [f1] 'switch-to-buffer)
+;; map C-x o to f2
+(global-set-key [f2] 'other-window)
+;; map C-x o to tab
+(global-set-key [C-tab] 'other-window)
+
 ;; y or n is sufficient for yes or no questions
 (defalias 'yes-or-no-p 'y-or-n-p)
 ;(fset 'yes-or-no-p 'y-or-n-p)
@@ -33,7 +40,24 @@
       initial-scratch-message nil
       ring-bell-function 'ignore)
 
-(tool-bar-mode -1)
+;; Enable/Disable scroll bar
+(toggle-scroll-bar 1)
+;; Enable/Disable toolbars
+(tool-bar-mode 0)
+;; Enable/Disable menu bars
+(menu-bar-mode 1) 
+;; Enable line numbers
+(global-linum-mode 1)
+(setq line-number-mode t)
+(setq column-number-mode t)
+
+;; scrolling line by line
+(setq scroll-step 1)
+
+;; Toggle visualization of matching parens (Show Paren mode).
+(show-paren-mode t)
+(setq show-paren-style 'mixed)
+(setq show-paren-delay 0)
 
 ;;;;org-mode configuration
 ;; Enable org-mode
