@@ -8,16 +8,22 @@
 (global-set-key "\C-x\C-k" 'kill-region)
 (global-set-key "\C-c\C-k" 'kill-region)
 
+;; y or n is sufficient for yes or no questions
 (defalias 'yes-or-no-p 'y-or-n-p)
+;(fset 'yes-or-no-p 'y-or-n-p)
 
+;; set background to black, easy on the eyes
+(set-background-color "black")
+;; set text (i.e., foreground) to white
+(set-foreground-color "white")
+
+;; Packages
 (require 'package)
-
 (add-to-list 'package-archives
              '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
 (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/"))
 (add-to-list 'package-archives '("marmalade" . "https://marmalade-repo.org/packages/"))
-
 (package-initialize)
 
 (when (not package-archive-contents)
@@ -45,18 +51,23 @@
 
 (setq org-log-done t)
 
-;;;;; Racket Mode
-(setq racket-program "/path/to/racket/executable/racket")
+(setq org-agenda-files (list "~/gtd/study.org"))
 
-;;;;;;;C mode, set tabs to 4
-(setq-default c-basic-offset 4)
+;; Racket Mode
+;;(setq racket-program "/path/to/racket/executable/racket")
 
-(display-time-mode 1)
+;; Show the time
+;; (display-time-mode 1)
+(display-time)
 
 (server-start)
 
 ;;word-wrapped all documents
 (global-visual-line-mode t)
+
+
+;; C mode, set tabs to 4
+(setq-default c-basic-offset 4)
 
 ;;https://www.kernel.org/doc/html/v4.10/process/coding-style.html
 (defun c-lineup-arglist-tabs-only (ignored)
@@ -83,7 +94,7 @@
             (let ((filename (buffer-file-name)))
               ;; Enable kernel mode for the appropriate files
               (when (and filename
-                         (string-match (expand-file-name "~/dev")
+                         (string-match (expand-file-name "~/")
                                        filename))
                 (setq indent-tabs-mode t)
                 (setq show-trailing-whitespace t)
@@ -97,10 +108,12 @@
 	    '(buffer-file-name "%f" (dired-directory dired-directory "%b"))))
 
 ;; Display Visited File's Path in the Frame Title
-;: http://emacsredux.com/blog/2013/04/07/display-visited-files-path-in-the-frame-title/
+;; http://emacsredux.com/blog/2013/04/07/display-visited-files-path-in-the-frame-title/
 ;(setq frame-title-format
 ;     '((:eval (if (buffer-file-name)
 ;		   (abbreviate-file-name (buffer-file-name)) 
 ;		 "%b"))))
 
 
+;; cscope configuration file
+(load "~/cscope.el")
