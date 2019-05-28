@@ -8,6 +8,7 @@
 (global-set-key "\C-x\C-k" 'kill-region)
 (global-set-key "\C-c\C-k" 'kill-region)
 
+;; https://www.cs.unm.edu/~williams/cs357/dotemacs
 ;; map C-x b  to f1
 ;(global-set-key [f1] 'switch-to-buffer)
 ;; map C-x o to f2
@@ -45,7 +46,7 @@
 ;; Enable/Disable toolbars
 (tool-bar-mode 0)
 ;; Enable/Disable menu bars
-(menu-bar-mode 1) 
+(menu-bar-mode 1)
 ;; Enable line numbers
 (global-linum-mode 1)
 (setq line-number-mode t)
@@ -84,46 +85,96 @@
 ;; (display-time-mode 1)
 (display-time)
 
-(server-start)
+(require 'server)
+(if (and (fboundp 'server-running-p)
+         (not (server-running-p)))
+    (server-start))
 
 ;;word-wrapped all documents
 (global-visual-line-mode t)
 
 
 ;; C mode, set tabs to 4
-(setq-default c-basic-offset 4)
+;; (setq-default c-basic-offset 4)
 
 ;;https://www.kernel.org/doc/html/v4.10/process/coding-style.html
+;; (defun c-lineup-arglist-tabs-only (ignored)
+;;   "Line up argument lists by tabs, not spaces"
+;;   (let* ((anchor (c-langelem-pos c-syntactic-element))
+;;          (column (c-langelem-2nd-pos c-syntactic-element))
+;;          (offset (- (1+ column) anchor))
+;;          (steps (floor offset c-basic-offset)))
+;;     (* (max steps 1)
+;;        c-basic-offset)))
+
+;; (add-hook 'c-mode-common-hook
+;;           (lambda ()
+;;             ;; Add kernel style
+;;             (c-add-style
+;;              "linux-tabs-only"
+;;              '("linux" (c-offsets-alist
+;;                         (arglist-cont-nonempty
+;;                          c-lineup-gcc-asm-reg
+;;                          c-lineup-arglist-tabs-only))))))
+
+;; (add-hook 'c-mode-hook
+;;           (lambda ()
+;;             (let ((filename (buffer-file-name)))
+;;               ;; Enable kernel mode for the appropriate files
+;;               (when (and filename
+;;                          (string-match (expand-file-name "~/")
+;;                                        filename))
+;;                 (setq indent-tabs-mode t)
+;;                 (setq show-trailing-whitespace t)
+;;                 (c-set-style "linux-tabs-only")))))
+
+;;https://www.kernel.org/doc/Documentation/process/coding-style.rst
 (defun c-lineup-arglist-tabs-only (ignored)
   "Line up argument lists by tabs, not spaces"
   (let* ((anchor (c-langelem-pos c-syntactic-element))
-         (column (c-langelem-2nd-pos c-syntactic-element))
-         (offset (- (1+ column) anchor))
-         (steps (floor offset c-basic-offset)))
+	 (column (c-langelem-2nd-pos c-syntactic-element))
+	 (offset (- (1+ column) anchor))
+	 (steps (floor offset c-basic-offset)))
     (* (max steps 1)
        c-basic-offset)))
 
-(add-hook 'c-mode-common-hook
-          (lambda ()
-            ;; Add kernel style
-            (c-add-style
-             "linux-tabs-only"
-             '("linux" (c-offsets-alist
-                        (arglist-cont-nonempty
-                         c-lineup-gcc-asm-reg
-                         c-lineup-arglist-tabs-only))))))
+(dir-locals-set-class-variables
+ 'linux-kernel
+ '((c-mode . (
+	      (c-basic-offset . 8)
+	      (c-label-minimum-indentation . 0)
+	      (c-offsets-alist . (
+				  (arglist-close         . c-lineup-arglist-tabs-only)
+				  (arglist-cont-nonempty .
+							 (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+				  (arglist-intro         . +)
+				  (brace-list-intro      . +)
+				  (c                     . c-lineup-C-comments)
+				  (case-label            . 0)
+				  (comment-intro         . c-lineup-comment)
+				  (cpp-define-intro      . +)
+				  (cpp-macro             . -1000)
+				  (cpp-macro-cont        . +)
+				  (defun-block-intro     . +)
+				  (else-clause           . 0)
+				  (func-decl-cont        . +)
+				  (inclass               . +)
+				  (inher-cont            . c-lineup-multi-inher)
+				  (knr-argdecl-intro     . 0)
+				  (label                 . -1000)
+				  (statement             . 0)
+				  (statement-block-intro . +)
+				  (statement-case-intro  . +)
+				  (statement-cont        . +)
+				  (substatement          . +)
+				  ))
+	      (indent-tabs-mode . t)
+	      (show-trailing-whitespace . t)
+	      ))))
 
-(add-hook 'c-mode-hook
-          (lambda ()
-            (let ((filename (buffer-file-name)))
-              ;; Enable kernel mode for the appropriate files
-              (when (and filename
-                         (string-match (expand-file-name "~/")
-                                       filename))
-                (setq indent-tabs-mode t)
-                (setq show-trailing-whitespace t)
-                (c-set-style "linux-tabs-only")))))
-
+(dir-locals-set-directory-class
+ (expand-file-name "~/src")
+ 'linux-kernel)
 
 ;; Show system-name and the full path of the buffer your currently editing.
 ;; https://stackoverflow.com/questions/3669511/the-function-to-show-current-files-full-path-in-mini-buffer
@@ -135,9 +186,28 @@
 ;; http://emacsredux.com/blog/2013/04/07/display-visited-files-path-in-the-frame-title/
 ;(setq frame-title-format
 ;     '((:eval (if (buffer-file-name)
-;		   (abbreviate-file-name (buffer-file-name)) 
+;		   (abbreviate-file-name (buffer-file-name))
 ;		 "%b"))))
 
 
-;; cscope configuration file
-(load "~/cscope.el")
+;;cscope setup
+(require 'xcscope)
+(cscope-setup)
+
+;;https://emacs.stackexchange.com/questions/30221/wrap-lines-at-80-characters
+(add-hook 'text-mode-hook 'auto-fill-mode)
+(setq-default fill-column 80)
+
+;;https://www.emacswiki.org/emacs/FillColumnIndicator
+(require 'fill-column-indicator)
+(setq fci-rule-width 1)
+(setq fci-rule-color "darkblue")
+(add-hook 'c-mode-hook 'fci-mode)
+
+;;https://www.emacswiki.org/emacs/EightyColumnRule
+(require 'whitespace)
+(setq whitespace-style '(face empty lines-tail trailing))
+(global-whitespace-mode t)
+
+;;https://emacs.stackexchange.com/questions/7362/how-to-show-a-diff-between-two-buffers-with-character-level-diffs/9411
+(setq-default ediff-forward-word-function 'forward-char)
