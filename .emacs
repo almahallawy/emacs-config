@@ -27,12 +27,17 @@
 
 ;; Packages
 (require 'package)
-(add-to-list 'package-archives
-             '("melpa-stable" . "https://stable.melpa.org/packages/") t)
-(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+;;(add-to-list 'package-archives
+;;	     '("melpa-stable" . "https://stable.melpa.org/packages/") t)
+(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/"))
-(add-to-list 'package-archives '("marmalade" . "https://marmalade-repo.org/packages/"))
+;; (add-to-list 'package-archives '("marmalade" .
+;; 				 "https://marmalade-repo.org/packages/"))
 (package-initialize)
+
+;; (setq tls-checktrust t)
+;; (setq gnutls-verify-error t)
+
 
 (when (not package-archive-contents)
   (package-refresh-contents))
@@ -206,7 +211,13 @@
 
 ;;https://www.emacswiki.org/emacs/EightyColumnRule
 (require 'whitespace)
-(setq whitespace-style '(face empty lines-tail trailing))
+(setq whitespace-style '(face empty lines-tail trailing indentation))
+(setq whitespace-line-column nil)
+(set-face-attribute 'whitespace-line nil
+		    :background "purple"
+		    :foreground "white"
+		    :weight 'bold)
+
 (global-whitespace-mode t)
 
 ;;https://emacs.stackexchange.com/questions/7362/how-to-show-a-diff-between-two-buffers-with-character-level-diffs/9411
@@ -224,3 +235,19 @@
    "#+BEGIN_SRC emacs-lisp\n")
  (insert
    "#+END_SRC"))
+
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(eval-when-compile
+  (require 'use-package))
+(setq use-package-always-ensure t)
+
+
+(use-package helm)
+(helm-mode 1)
+
+
+(setq tramp-default-method "ssh")
+(setq tramp-syntax 'simplified)
