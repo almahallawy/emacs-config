@@ -211,3 +211,16 @@
 
 ;;https://emacs.stackexchange.com/questions/7362/how-to-show-a-diff-between-two-buffers-with-character-level-diffs/9411
 (setq-default ediff-forward-word-function 'forward-char)
+
+(defun drm-debug ()
+  (interactive)
+  (insert
+   "DRM_ERROR(\"I915-DEBUG: %s %d\\n\", __FUNCTION__, __LINE__);
+"))
+
+(defun belisp ()
+  (interactive)
+  (insert
+   "#+BEGIN_SRC emacs-lisp\n")
+ (insert
+   "#+END_SRC"))
