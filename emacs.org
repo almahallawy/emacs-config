@@ -27,7 +27,14 @@
 (global-set-key [f2] 'other-window)
 ;; map C-x o to tab
 (global-set-key [C-tab] 'other-window)
+#+END_SRC
 
+* Server
+#+BEGIN_SRC emacs-lisp
+(require 'server)
+(if (and (fboundp 'server-running-p)
+         (not (server-running-p)))
+    (server-start))
 #+END_SRC
 
 * y or n
@@ -38,14 +45,21 @@
 #+END_SRC
 
 * Look & feel
-
+** Background/Foreground color
 #+BEGIN_SRC emacs-lisp
 ;; set background to black, easy on the eyes
 (set-background-color "black")
 ;; set text (i.e., foreground) to white
 (set-foreground-color "white")
+#+END_SRC
+
+** Scrolling
+#+BEGIN_SRC emacs-lisp
 ;; Enable/Disable scroll bar
 (toggle-scroll-bar 1)
+#+END_SRC
+** Toolbars
+#+BEGIN_SRC emacs-lisp
 ;; Enable/Disable toolbars
 (tool-bar-mode 0)
 ;; Enable/Disable menu bars
@@ -54,19 +68,21 @@
 (global-linum-mode 1)
 (setq line-number-mode t)
 (setq column-number-mode t)
-
 ;; scrolling line by line
 (setq scroll-step 1)
-
 ;; Toggle visualization of matching parens (Show Paren mode).
 (show-paren-mode t)
 (setq show-paren-style 'mixed)
 (setq show-paren-delay 0)
-
+#+END_SRC
+** Show the time
+#+BEGIN_SRC emacs-lisp
 ;; Show the time
 ;; (display-time-mode 1)
 (display-time)
+#+END_SRC
 
+#+BEGIN_SRC emacs-lisp
 ;; Show system-name and the full path of the buffer your currently editing.
 ;; https://stackoverflow.com/questions/3669511/the-function-to-show-current-files-full-path-in-mini-buffer
 (setq frame-title-format
@@ -83,9 +99,41 @@
 (setq inhibit-splash-screen t
       initial-scratch-message nil
       ring-bell-function 'ignore)
-
 #+END_SRC
 
+** Word Wrap
+#+BEGIN_SRC emacs-lisp
+;;word-wrapped all documents
+(global-visual-line-mode t)
+#+END_SRC
+
+** Wrap lines at 80 characters
+#+BEGIN_SRC emacs-lisp
+;;https://emacs.stackexchange.com/questions/30221/wrap-lines-at-80-characters
+(add-hook 'text-mode-hook 'auto-fill-mode)
+(setq-default fill-column 80)
+#+END_SRC
+
+** Fill Column Indicator
+#+BEGIN_SRC emacs-lisp
+;;https://www.emacswiki.org/emacs/FillColumnIndicator
+(require 'fill-column-indicator)
+(setq fci-rule-width 1)
+(setq fci-rule-color "darkblue")
+(add-hook 'c-mode-hook 'fci-mode)
+#+END_SRC
+** Eighty Column Rule
+#+BEGIN_SRC emacs-lisp
+;;https://www.emacswiki.org/emacs/EightyColumnRule
+(require 'whitespace)
+(setq whitespace-style '(face empty lines-tail trailing indentation))
+(setq whitespace-line-column nil)
+(set-face-attribute 'whitespace-line nil
+		    :background "purple"
+		    :foreground "white"
+		    :weight 'bold)
+(global-whitespace-mode t)
+#+END_SRC
 * Packages
 #+BEGIN_SRC emacs-lisp
 ;; Packages
@@ -101,11 +149,19 @@
 ;; (setq tls-checktrust t)
 ;; (setq gnutls-verify-error t)
 
-
 (when (not package-archive-contents)
   (package-refresh-contents))
+#+END_SRC
 
+** Install and configure use-package
+#+BEGIN_SRC emacs-lisp
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
 
+(eval-when-compile
+  (require 'use-package))
+(setq use-package-always-ensure t)
 #+END_SRC
 
 * Org Mode
@@ -251,4 +307,9 @@
 #+BEGIN_SRC emacs-lisp
 (use-package helm)
 (helm-mode 1)
+#+END_SRC
+* Buffer comparison
+#+BEGIN_SRC emacs-lisp
+;;https://emacs.stackexchange.com/questions/7362/how-to-show-a-diff-between-two-buffers-with-character-level-diffs/9411
+(setq-default ediff-forward-word-function 'forward-char)
 #+END_SRC
