@@ -249,5 +249,16 @@
 (helm-mode 1)
 
 
-(setq tramp-default-method "ssh")
-(setq tramp-syntax 'simplified)
+(use-package powerline)
+
+;;cscope setup
+(use-package xcscope)
+(require 'xcscope)
+(cscope-setup)
+
+;;https://www.emacswiki.org/emacs/FillColumnIndicator
+(use-package fill-column-indicator)
+(require 'fill-column-indicator)
+(setq fci-rule-width 1)
+(setq fci-rule-color "darkblue")
+(add-hook 'c-mode-hook 'fci-mode)
