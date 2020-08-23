@@ -324,3 +324,8 @@
 ;;https://emacs.stackexchange.com/questions/7362/how-to-show-a-diff-between-two-buffers-with-character-level-diffs/9411
 (setq-default ediff-forward-word-function 'forward-char)
 #+END_SRC
+
+* Racket Mode
+#+BEGIN_SRC emacs-lisp
+(use-package racket-mode)
+#+END_SRC
