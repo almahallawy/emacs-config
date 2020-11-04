@@ -329,3 +329,13 @@
 #+BEGIN_SRC emacs-lisp
 (use-package racket-mode)
 #+END_SRC
+
+* Geiser
+#+BEGIN_SRC emacs-lisp
+(use-package geiser)
+#+END_SRC
+
+* Paredit
+#+BEGIN_SRC emacs-lisp
+(use-package paredit)
+#+END_SRC
