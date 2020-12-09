@@ -5,6 +5,7 @@
 #+PROPERTY: header-args:emacs-lisp  :tangle yes
 
 * Generate .emacs file
+ M-x org-babel-tangle (C-c C-v t)
 
 * Packages
 #+BEGIN_SRC emacs-lisp
