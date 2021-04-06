@@ -176,6 +176,11 @@
 		    :weight 'bold)
 (global-whitespace-mode t)
 #+END_SRC
+
+** Highlight Line Mode
+#+BEGIN_SRC emacs-lisp
+(global-hl-line-mode 1)
+#+END_SRC
 * Org Mode
 #+BEGIN_SRC emacs-lisp
 ;;;;org-mode configuration
@@ -350,4 +355,9 @@
 (add-hook 'lisp-mode-hook             #'enable-paredit-mode)
 (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
 (add-hook 'scheme-mode-hook           #'enable-paredit-mode)
+#+END_SRC
+* Neotree
+#+BEGIN_SRC emacs-lisp
+(use-package neotree)
+(require 'neotree)
 #+END_SRC
