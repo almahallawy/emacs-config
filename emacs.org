@@ -171,9 +171,9 @@
 (setq whitespace-style '(face empty lines-tail trailing indentation))
 (setq whitespace-line-column nil)
 (set-face-attribute 'whitespace-line nil
-		    :background "purple"
-		    :foreground "white"
-		    :weight 'bold)
+    :background "purple"
+    :foreground "white"
+    :weight 'bold)
 (global-whitespace-mode t)
 #+END_SRC
 
@@ -181,6 +181,17 @@
 #+BEGIN_SRC emacs-lisp
 (global-hl-line-mode 1)
 #+END_SRC
+
+* Backup
+From: https://sachachua.com/dotemacs/#org11890e0
+#+BEGIN_SRC emacs-lisp
+(setq backup-directory-alist '(("." . "~/.config/emacs/backups")))
+(setq delete-old-versions -1)
+(setq version-control t)
+(setq vc-make-backup-files t)
+(setq auto-save-file-name-transforms '((".*" "~/.config/emacs/auto-save-list/" t)))
+#+END_SRC
+
 * Org Mode
 #+BEGIN_SRC emacs-lisp
 ;;;;org-mode configuration
