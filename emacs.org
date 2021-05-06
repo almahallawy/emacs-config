@@ -174,12 +174,16 @@
     :background "purple"
     :foreground "white"
     :weight 'bold)
-(global-whitespace-mode t)
+
+;;TODO enable white space only for C code
+(global-whitespace-mode nil)
 #+END_SRC
 
 ** Highlight Line Mode
 #+BEGIN_SRC emacs-lisp
+;; highlight line mode
 (global-hl-line-mode 1)
+(set-face-background hl-line-face "gray17")
 #+END_SRC
 
 * Backup
@@ -189,6 +193,7 @@ From: https://sachachua.com/dotemacs/#org11890e0
 (setq delete-old-versions -1)
 (setq version-control t)
 (setq vc-make-backup-files t)
+;; you may need to create auto-save-list folder.
 (setq auto-save-file-name-transforms '((".*" "~/.config/emacs/auto-save-list/" t)))
 #+END_SRC
 
@@ -418,4 +423,76 @@ You may need to create auto-save-list folder below
 #+BEGIN_SRC emacs-lisp
 (use-package iedit)
 (require 'iedit)
+#+END_SRC
+* Company (auto-completion)
+From: https://codeberg.org/jao/elibs/src/branch/main/completion.org
+#+BEGIN_SRC emacs-lisp
+    (use-package company
+      :ensure t
+      :custom ((company-backends '(company-capf
+                                   company-bbdb
+                                   company-files
+                                   company-dabbrev
+                                   company-keywords))
+               ;; (company-global-modes '(clojure-mode))
+               ;; (company-global-modes t)
+               (company-idle-delay 0.2)
+               (company-lighter "")
+               (company-lighter-base "")
+               (company-show-numbers nil)
+               (company-selection-wrap-around t)
+               (company-tooltip-limit 15)
+               (company-tooltip-align-annotations t)
+               (company-tooltip-offset-display 'lines)) ;; 'scrollbar
+
+      :config
+      (defun jao-complete-at-point ()
+        "Complete using company unless we're in the minibuffer."
+        (interactive)
+        (if (window-minibuffer-p) (completion-at-point) (company-manual-begin)))
+
+      (defun jao-company-use-in-tab ()
+        (global-set-key [remap completion-at-point] #'jao-complete-at-point)
+        (global-set-key [remap completion-symbol] #'jao-complete-at-point)
+        (global-set-key (kbd "C-TAB") #'jao-complete-at-point))
+
+      (jao-company-use-in-tab)
+      (define-key company-active-map (kbd "C-n") #'company-select-next)
+      (define-key company-active-map (kbd "C-p") #'company-select-previous)
+
+
+      :bind (:map company-active-map
+
+             ("<tab>" . #'company-complete-common-or-cycle)
+             ("TAB" . #'company-complete-common-or-cycle)
+
+             ("C-h" . #'company-show-doc-buffer)
+             ("M-." . #'company-show-location)
+
+             :filter (or (not (derived-mode-p 'eshell-mode))
+                         (company-explicit-action-p))
+             ("<return>" . #'company-complete-selection)
+             ("RET" . #'company-complete-selection))
+      :diminish)
+
+    (global-company-mode 1)
+
+#+END_SRC
+* Elisp
+** if the output looks like the following. 
+;;((((...))))
+
+That is because  there is a limit on the max depth of nesting of parenthese and brackets when printed.
+ https://emacs.stackexchange.com/questions/34413/what-is-the-meaning-of-the-ellipsis-at-the-end-of-some-output
+ https://www.gnu.org/software/emacs/manual/html_node/elisp/Output-Variables.html
+ https://www.gnu.org/software/emacs/manual/html_node/emacs/Lisp-Eval.html
+ https://ftp.gnu.org/old-gnu/Manuals/elisp-manual-20-2.5/html_chapter/elisp_19.html
+ https://stackoverflow.com/questions/10728859/how-do-i-insert-a-lenghthier-list-in-my-buffer-with-elisp
+
+To solve this, set the variable eval-expression-print-level here or in .emacs file
+(print eval-expression-print-level)
+
+#+BEGIN_SRC emacs-lisp
+;; set to nil to have no limit
+(setq eval-expression-print-level nil)
 #+END_SRC
