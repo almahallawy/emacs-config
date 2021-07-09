@@ -176,7 +176,7 @@
     :weight 'bold)
 
 ;;TODO enable white space only for C code
-(global-whitespace-mode nil)
+(setq global-whitespace-mode nil)
 #+END_SRC
 
 ** Highlight Line Mode
@@ -495,4 +495,22 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 #+BEGIN_SRC emacs-lisp
 ;; set to nil to have no limit
 (setq eval-expression-print-level nil)
+#+END_SRC
+
+* Python
+#+BEGIN_SRC emacs-lisp
+;; python
+(use-package elpy
+  :ensure t
+  :init
+  (elpy-enable))
+
+;;(setq elpy-rpc-python-command "python3")
+
+(use-package jedi
+  :ensure t)
+
+(add-hook 'python-mode-hook 'jedi:setup)
+(setq jedi:complete-on-dot t)                 ; optional
+
 #+END_SRC
