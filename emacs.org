@@ -361,6 +361,9 @@ From: https://sachachua.com/dotemacs/#org11890e0
 ;;https://gitlab.com/emacs-geiser/geiser
 ;; (use-package geiser)
 (use-package geiser-guile :ensure t)
+(use-package geiser-guile :ensure t)
+(use-package geiser-racket :ensure t)
+
 
 ;; To match elisp C-j eval last expression
 (add-hook 'geiser-mode-hook
