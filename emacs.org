@@ -517,3 +517,9 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 (setq jedi:complete-on-dot t)                 ; optional
 
 #+END_SRC
+
+* Git
+#+BEGIN_SRC emacs-lisp
+;; set to nil to have no limit
+(use-package magit)
+#+END_SRC
