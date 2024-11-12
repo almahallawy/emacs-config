@@ -101,20 +101,20 @@
 #+END_SRC
 ** Toolbars
 #+BEGIN_SRC emacs-lisp
-;; Enable/Disable toolbars
-(tool-bar-mode 0)
-;; Enable/Disable menu bars
-(menu-bar-mode 1)
-;; Enable line numbers
-(global-linum-mode 1)
-(setq line-number-mode t)
-(setq column-number-mode t)
-;; scrolling line by line
-(setq scroll-step 1)
-;; Toggle visualization of matching parens (Show Paren mode).
-(show-paren-mode t)
-(setq show-paren-style 'mixed)
-(setq show-paren-delay 0)
+  ;; Enable/Disable toolbars
+  (tool-bar-mode 0)
+  ;; Enable/Disable menu bars
+  (menu-bar-mode 1)
+  ;; Enable line numbers
+  (setq line-number-mode t)
+  (global-display-line-numbers-mode 1) ;; Enable line numbers globally
+  (setq column-number-mode t)
+  ;; scrolling line by line
+  (setq scroll-step 1)
+  ;; Toggle visualization of matching parens (Show Paren mode).
+  (show-paren-mode t)
+  (setq show-paren-style 'mixed)
+  (setq show-paren-delay 0)
 #+END_SRC
 ** Show the time
 #+BEGIN_SRC emacs-lisp
@@ -381,6 +381,10 @@ From: https://sachachua.com/dotemacs/#org11890e0
 (add-hook 'lisp-mode-hook             #'enable-paredit-mode)
 (add-hook 'lisp-interaction-mode-hook #'enable-paredit-mode)
 (add-hook 'scheme-mode-hook           #'enable-paredit-mode)
+(add-hook 'cider-repl-mode-hook #'paredit-mode)
+(add-hook 'cider-mode-hook #'paredit-mode)
+(add-hook 'clojure-mode-hook #'paredit-mode)
+(add-hook 'racket-mode-hook #'paredit-mode)
 ;; The following is needed for lisp-interaction-mode paredit override of c-j
 (define-key paredit-mode-map (kbd "C-j") nil)
 
@@ -522,4 +526,13 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 #+BEGIN_SRC emacs-lisp
 ;; set to nil to have no limit
 (use-package magit)
+#+END_SRC
+
+
+* Clojure
+#+BEGIN_SRC emacs-lisp 
+;; Clojure
+(use-package clojure-mode)
+(use-package cider
+  :ensure t)
 #+END_SRC
