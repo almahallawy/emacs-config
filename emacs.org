@@ -4,8 +4,16 @@
 #+OPTIONS: toc:4 h:4
 #+PROPERTY: header-args:emacs-lisp  :tangle yes
 
-* Generate .emacs file
+* Generate the emacs configuration file
  M-x org-babel-tangle (C-c C-v t)
+
+This will generate: emacs.el
+Rename it to my-default.el, then add the following to your .emacs file
+Note that src/emacs-config is the location of the emacs config file.
+
+(defvar kia-emacs-directory "~/src/emacs-config")
+(add-to-list 'load-path kia-emacs-directory)
+(require 'my-default)
 
 * Packages
 #+BEGIN_SRC emacs-lisp
@@ -228,39 +236,6 @@ From: https://sachachua.com/dotemacs/#org11890e0
 
 * Coding Style
 #+BEGIN_SRC emacs-lisp
-;; C mode, set tabs to 4
-;; (setq-default c-basic-offset 4)
-
-;;https://www.kernel.org/doc/html/v4.10/process/coding-style.html
-;; (defun c-lineup-arglist-tabs-only (ignored)
-;;   "Line up argument lists by tabs, not spaces"
-;;   (let* ((anchor (c-langelem-pos c-syntactic-element))
-;;          (column (c-langelem-2nd-pos c-syntactic-element))
-;;          (offset (- (1+ column) anchor))
-;;          (steps (floor offset c-basic-offset)))
-;;     (* (max steps 1)
-;;        c-basic-offset)))
-
-;; (add-hook 'c-mode-common-hook
-;;           (lambda ()
-;;             ;; Add kernel style
-;;             (c-add-style
-;;              "linux-tabs-only"
-;;              '("linux" (c-offsets-alist
-;;                         (arglist-cont-nonempty
-;;                          c-lineup-gcc-asm-reg
-;;                          c-lineup-arglist-tabs-only))))))
-
-;; (add-hook 'c-mode-hook
-;;           (lambda ()
-;;             (let ((filename (buffer-file-name)))
-;;               ;; Enable kernel mode for the appropriate files
-;;               (when (and filename
-;;                          (string-match (expand-file-name "~/")
-;;                                        filename))
-;;                 (setq indent-tabs-mode t)
-;;                 (setq show-trailing-whitespace t)
-;;                 (c-set-style "linux-tabs-only")))))
 
 ;;https://www.kernel.org/doc/Documentation/process/coding-style.rst
 (defun c-lineup-arglist-tabs-only (ignored)
@@ -407,23 +382,23 @@ You may need to create auto-save-list folder below
 
 * Rainbow Delimiters
 #+BEGIN_SRC emacs-lisp
-(use-package rainbow-delimiters)
-(require 'rainbow-delimiters)
-(add-hook 'prog-mode-hook #'rainbow-delimiters-mode)
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- ;'(rainbow-delimiters-depth-1-face ((t (:foreground "dark orange"))))
- '(rainbow-delimiters-depth-1-face ((t (:foreground "purple"))))
- '(rainbow-delimiters-depth-2-face ((t (:foreground "deep pink"))))
- '(rainbow-delimiters-depth-3-face ((t (:foreground "chartreuse"))))
- '(rainbow-delimiters-depth-4-face ((t (:foreground "deep sky blue"))))
- '(rainbow-delimiters-depth-5-face ((t (:foreground "yellow"))))
- '(rainbow-delimiters-depth-6-face ((t (:foreground "orchid"))))
- '(rainbow-delimiters-depth-7-face ((t (:foreground "spring green"))))
- '(rainbow-delimiters-depth-8-face ((t (:foreground "sienna1")))))
+  (use-package rainbow-delimiters)
+  (require 'rainbow-delimiters)
+  (add-hook 'prog-mode-hook #'rainbow-delimiters-mode)
+  ;; (custom-set-faces
+  ;;  ;; custom-set-faces was added by Custom.
+  ;;  ;; If you edit it by hand, you could mess it up, so be careful.
+  ;;  ;; Your init file should contain only one such instance.
+  ;;  ;; If there is more than one, they won't work right.
+  ;;  ;'(rainbow-delimiters-depth-1-face ((t (:foreground "dark orange"))))
+  ;;  '(rainbow-delimiters-depth-1-face ((t (:foreground "purple"))))
+  ;;  '(rainbow-delimiters-depth-2-face ((t (:foreground "deep pink"))))
+  ;;  '(rainbow-delimiters-depth-3-face ((t (:foreground "chartreuse"))))
+  ;;  '(rainbow-delimiters-depth-4-face ((t (:foreground "deep sky blue"))))
+  ;;  '(rainbow-delimiters-depth-5-face ((t (:foreground "yellow"))))
+  ;;  '(rainbow-delimiters-depth-6-face ((t (:foreground "orchid"))))
+  ;;  '(rainbow-delimiters-depth-7-face ((t (:foreground "spring green"))))
+  ;;  '(rainbow-delimiters-depth-8-face ((t (:foreground "sienna1")))))
 #+END_SRC
 
 * iedit
@@ -535,4 +510,42 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 (use-package clojure-mode)
 (use-package cider
   :ensure t)
+#+END_SRC
+
+* Copilot Chat
+#+BEGIN_SRC emacs-lisp
+;; Copilot chat: https://github.com/chep/copilot-chat.le
+(use-package shell-maker
+   :ensure t)
+(use-package copilot-chat)
+#+END_SRC
+
+* Copilot Mode
+#+BEGIN_SRC emacs-lisp
+;; Copilot mode: https://github.com/copilot-emacs/copilot.el 
+;; (use-package editorconfig
+;;   :ensure t)
+
+;; (use-package jsonrpc
+;;   :ensure t)
+
+;; (use-package f
+;;   :ensure t)
+
+;; (add-to-list 'load-path "~/src/copilot.el")
+;; (require 'copilot)
+
+;; (add-hook 'prog-mode-hook 'copilot-mode)
+;; (add-hook 'prog-mode-hook
+;; (lambda ()
+;;     (define-key prog-mode-map (kbd "C-<return>") 'copilot-accept-completion)))
+
+;;(copilot-mode nil)
+#+END_SRC
+
+* Provide
+#+BEGIN_SRC emacs-lisp
+  ;; Make this config file available.
+;; always at the end of file
+  (provide 'my-default)
 #+END_SRC
