@@ -275,14 +275,14 @@ From: https://sachachua.com/dotemacs/#org11890e0
  (expand-file-name "~/src")
  'linux-kernel)
 
+#+END_SRC
 
-#+END_SRC
-* cscope
-#+BEGIN_SRC emacs-lisp
+* xcscope
+;;#+BEGIN_SRC emacs-lisp
 (use-package xcscope)
-(require 'xcscope)
+require 'xcscope)
 (cscope-setup)
-#+END_SRC
+;;#+END_SRC
 
 * Macros
 #+BEGIN_SRC emacs-lisp
@@ -533,9 +533,20 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 ;;(copilot-mode nil)
 #+END_SRC
 
+* Jeremy's cscope: https://github.com/jeremy-compostella/cscope
+#+BEGIN_SRC emacs-lisp
+(add-to-list 'load-path "/home/khaled/src/cscope")
+(require 'cscope)
+(global-set-key (kbd "M-.") #'cscope-find-this-function-definition)
+(global-set-key (kbd "M-,") #'cscope-find-this-C-symbol)
+(global-set-key (kbd "C-c s") #'cscope-entry)
+(define-key cscope-mode-map (kbd "<return>") #'cscope-display-match)
+#+END_SRC
+
 * Provide
 #+BEGIN_SRC emacs-lisp
   ;; Make this config file available.
 ;; always at the end of file
   (provide 'my-default)
 #+END_SRC
+
