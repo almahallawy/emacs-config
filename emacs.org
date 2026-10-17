@@ -2,18 +2,24 @@
 #+STARTUP: showall
 #+STARTUP: indent
 #+OPTIONS: toc:4 h:4
-#+PROPERTY: header-args:emacs-lisp  :tangle yes
+#+PROPERTY: header-args:emacs-lisp  :tangle kia-config.el
 
 * Generate the emacs configuration file
  M-x org-babel-tangle (C-c C-v t)
 
-This will generate: emacs.el
-Rename it to my-default.el, then add the following to your .emacs file
+This will generate: kia-config.el
+Add the following to your .emacs file
 Note that src/emacs-config is the location of the emacs config file.
 
 (defvar kia-emacs-directory "~/src/emacs-config")
 (add-to-list 'load-path kia-emacs-directory)
-(require 'my-default)
+(require 'kia-config)
+
+* Prerequisites
+Clone these into ~/src before the first start; they are loaded from there:
+- https://github.com/karthink/gptel.git          -> ~/src/gptel
+- https://github.com/karthink/gptel-agent.git    -> ~/src/gptel-agent
+- https://github.com/jeremy-compostella/cscope   -> ~/src/cscope
 
 * Packages
 #+BEGIN_SRC emacs-lisp
@@ -45,15 +51,6 @@ Note that src/emacs-config is the location of the emacs config file.
 (setq use-package-always-ensure t)
 #+END_SRC
 
-* Install use-package
-#+BEGIN_SRC emacs-lisp
-;; This is only needed once, near the top of the file
-(eval-when-compile
-  ;; Following line is not needed if use-package.el is in ~/.emacs.d
-  (add-to-list 'load-path "<path where use-package is installed>")
-  (require 'use-package))
-#+END_SRC
-
 * Disable ring-bell
 #+BEGIN_SRC emacs-lisp
 (setq ring-bell-function 'ignore)
@@ -61,6 +58,7 @@ Note that src/emacs-config is the location of the emacs config file.
 
 * Key Bindings
 #+BEGIN_SRC emacs-lisp
+;; Fallback M-x bindings; the Helm section below rebinds these to helm-M-x.
 (global-set-key "\C-x\C-m" 'execute-extended-command)
 (global-set-key "\C-c\C-m" 'execute-extended-command)
 (global-set-key "\C-x\m" 'execute-extended-command)
@@ -146,8 +144,7 @@ Note that src/emacs-config is the location of the emacs config file.
 ;		 "%b"))))
 
 (setq inhibit-splash-screen t
-      initial-scratch-message nil
-      ring-bell-function 'ignore)
+      initial-scratch-message nil)
 #+END_SRC
 
 ** Word Wrap
@@ -165,12 +162,10 @@ Note that src/emacs-config is the location of the emacs config file.
 
 ** Fill Column Indicator
 #+BEGIN_SRC emacs-lisp
-;;https://www.emacswiki.org/emacs/FillColumnIndicator
-(use-package fill-column-indicator)
-;;(require 'fill-column-indicator)
-(setq fci-rule-width 1)
-(setq fci-rule-color "darkblue")
-(add-hook 'c-mode-hook 'fci-mode)
+;; Built-in (Emacs 27+) vertical line at fill-column (80) for C code.
+(add-hook 'c-mode-hook #'display-fill-column-indicator-mode)
+(with-eval-after-load 'display-fill-column-indicator
+  (set-face-foreground 'fill-column-indicator "darkblue"))
 #+END_SRC
 ** Eighty Column Rule
 #+BEGIN_SRC emacs-lisp
@@ -183,8 +178,8 @@ Note that src/emacs-config is the location of the emacs config file.
     :foreground "white"
     :weight 'bold)
 
-;;TODO enable white space only for C code
-(setq global-whitespace-mode nil)
+;; Enable whitespace highlighting only for C code
+(add-hook 'c-mode-hook #'whitespace-mode)
 #+END_SRC
 
 ** Highlight Line Mode
@@ -196,12 +191,15 @@ Note that src/emacs-config is the location of the emacs config file.
 
 * Backup
 From: https://sachachua.com/dotemacs/#org11890e0
+Source: https://pages.sachachua.com/.emacs.d/Sacha.html#org449ce7e
+The auto-save-list folder is created automatically below.
 #+BEGIN_SRC emacs-lisp
 (setq backup-directory-alist '(("." . "~/.config/emacs/backups")))
 (setq delete-old-versions -1)
 (setq version-control t)
 (setq vc-make-backup-files t)
-;; you may need to create auto-save-list folder.
+;; Create the auto-save-list folder if it does not exist (no manual step needed).
+(make-directory "~/.config/emacs/auto-save-list/" t)
 (setq auto-save-file-name-transforms '((".*" "~/.config/emacs/auto-save-list/" t)))
 #+END_SRC
 
@@ -215,13 +213,6 @@ From: https://sachachua.com/dotemacs/#org11890e0
 
 (setq org-use-speed-commands t
       org-src-window-setup 'current-window)
-#+END_SRC
-
-* Racket Mode
-#+BEGIN_SRC emacs-lisp
-;; Racket Mode
-;;(setq racket-program "/path/to/racket/executable/racket")
-
 #+END_SRC
 
 * Coding Style
@@ -275,14 +266,11 @@ From: https://sachachua.com/dotemacs/#org11890e0
  (expand-file-name "~/src")
  'linux-kernel)
 
-#+END_SRC
+;; Mark the dir-local values above as safe so a fresh setup does not prompt.
+(put 'c-offsets-alist 'safe-local-variable #'listp)
+(put 'c-label-minimum-indentation 'safe-local-variable #'integerp)
 
-* xcscope
-;;#+BEGIN_SRC emacs-lisp
-(use-package xcscope)
-require 'xcscope)
-(cscope-setup)
-;;#+END_SRC
+#+END_SRC
 
 * Macros
 #+BEGIN_SRC emacs-lisp
@@ -306,6 +294,7 @@ require 'xcscope)
 (use-package helm)
 (helm-mode 1)
 (global-set-key (kbd "C-x C-m") 'helm-M-x)
+(global-set-key (kbd "C-c C-m") 'helm-M-x)
 (global-set-key (kbd "C-x m") 'helm-M-x)
 (global-set-key (kbd "M-x") 'helm-M-x)
 #+END_SRC
@@ -316,24 +305,33 @@ require 'xcscope)
 (setq-default ediff-forward-word-function 'forward-char)
 #+END_SRC
 
-* Racket Mode
-#+BEGIN_SRC emacs-lisp
+* Racket Mode (not tangled, kept for later)
+#+BEGIN_SRC emacs-lisp :tangle no
 (use-package racket-mode)
+;;(setq racket-program "/path/to/racket/executable/racket")
 #+END_SRC
 
 * Geiser
 #+BEGIN_SRC emacs-lisp
 ;;https://gitlab.com/emacs-geiser/geiser
-;; (use-package geiser)
-(use-package geiser-guile :ensure t)
-(use-package geiser-guile :ensure t)
-(use-package geiser-racket :ensure t)
+(use-package geiser)
+(use-package geiser-guile)
 
 
 ;; To match elisp C-j eval last expression
 (add-hook 'geiser-mode-hook
           (lambda ()
             (local-set-key (kbd "C-j") 'geiser-eval-last-sexp)))
+#+END_SRC
+
+** Racket via Geiser (not tangled, kept for later)
+#+BEGIN_SRC emacs-lisp :tangle no
+(use-package geiser-racket)
+#+END_SRC
+
+** MIT Scheme (not tangled, kept for later)
+#+BEGIN_SRC emacs-lisp :tangle no
+(use-package geiser-mit)
 #+END_SRC
 
 * Paredit
@@ -359,36 +357,23 @@ require 'xcscope)
 (use-package neotree)
 (require 'neotree)
 #+END_SRC
-* Backup
-Source: https://pages.sachachua.com/.emacs.d/Sacha.html#org449ce7e
-You may need to create auto-save-list folder below
-#+BEGIN_SRC emacs-lisp
-(setq backup-directory-alist '(("." . "~/.config/emacs/backups")))
-(setq delete-old-versions -1)
-(setq version-control t)
-(setq vc-make-backup-files t)
-(setq auto-save-file-name-transforms '((".*" "~/.config/emacs/auto-save-list/" t)))
-#+END_SRC
-
 * Rainbow Delimiters
 #+BEGIN_SRC emacs-lisp
   (use-package rainbow-delimiters)
   (require 'rainbow-delimiters)
   (add-hook 'prog-mode-hook #'rainbow-delimiters-mode)
-  ;; (custom-set-faces
-  ;;  ;; custom-set-faces was added by Custom.
-  ;;  ;; If you edit it by hand, you could mess it up, so be careful.
-  ;;  ;; Your init file should contain only one such instance.
-  ;;  ;; If there is more than one, they won't work right.
-  ;;  ;'(rainbow-delimiters-depth-1-face ((t (:foreground "dark orange"))))
-  ;;  '(rainbow-delimiters-depth-1-face ((t (:foreground "purple"))))
-  ;;  '(rainbow-delimiters-depth-2-face ((t (:foreground "deep pink"))))
-  ;;  '(rainbow-delimiters-depth-3-face ((t (:foreground "chartreuse"))))
-  ;;  '(rainbow-delimiters-depth-4-face ((t (:foreground "deep sky blue"))))
-  ;;  '(rainbow-delimiters-depth-5-face ((t (:foreground "yellow"))))
-  ;;  '(rainbow-delimiters-depth-6-face ((t (:foreground "orchid"))))
-  ;;  '(rainbow-delimiters-depth-7-face ((t (:foreground "spring green"))))
-  ;;  '(rainbow-delimiters-depth-8-face ((t (:foreground "sienna1")))))
+
+;; Bright colours per nesting depth (readable on black background).
+;; set-face-foreground avoids clashing with custom-set-faces in ~/.emacs.
+(with-eval-after-load 'rainbow-delimiters
+  (set-face-foreground 'rainbow-delimiters-depth-1-face "purple")
+  (set-face-foreground 'rainbow-delimiters-depth-2-face "deep pink")
+  (set-face-foreground 'rainbow-delimiters-depth-3-face "chartreuse")
+  (set-face-foreground 'rainbow-delimiters-depth-4-face "deep sky blue")
+  (set-face-foreground 'rainbow-delimiters-depth-5-face "yellow")
+  (set-face-foreground 'rainbow-delimiters-depth-6-face "orchid")
+  (set-face-foreground 'rainbow-delimiters-depth-7-face "spring green")
+  (set-face-foreground 'rainbow-delimiters-depth-8-face "sienna1"))
 #+END_SRC
 
 * iedit
@@ -469,8 +454,8 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 (setq eval-expression-print-level nil)
 #+END_SRC
 
-* Python
-#+BEGIN_SRC emacs-lisp
+* Python (not tangled, kept for later)
+#+BEGIN_SRC emacs-lisp :tangle no
 ;; python
 (use-package elpy
   :ensure t
@@ -502,51 +487,63 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
   :ensure t)
 #+END_SRC
 
-* Copilot Chat
-#+BEGIN_SRC emacs-lisp
-;; Copilot chat: https://github.com/chep/copilot-chat.le
-(use-package shell-maker
-   :ensure t)
-(use-package copilot-chat)
-#+END_SRC
-
-* Copilot Mode
-#+BEGIN_SRC emacs-lisp
-;; Copilot mode: https://github.com/copilot-emacs/copilot.el 
-;; (use-package editorconfig
-;;   :ensure t)
-
-;; (use-package jsonrpc
-;;   :ensure t)
-
-;; (use-package f
-;;   :ensure t)
-
-;; (add-to-list 'load-path "~/src/copilot.el")
-;; (require 'copilot)
-
-;; (add-hook 'prog-mode-hook 'copilot-mode)
-;; (add-hook 'prog-mode-hook
-;; (lambda ()
-;;     (define-key prog-mode-map (kbd "C-<return>") 'copilot-accept-completion)))
-
-;;(copilot-mode nil)
-#+END_SRC
-
 * Jeremy's cscope: https://github.com/jeremy-compostella/cscope
 #+BEGIN_SRC emacs-lisp
-(add-to-list 'load-path "/home/khaled/src/cscope")
-(require 'cscope)
-(global-set-key (kbd "M-.") #'cscope-find-this-function-definition)
-(global-set-key (kbd "M-,") #'cscope-find-this-C-symbol)
-(global-set-key (kbd "C-c s") #'cscope-entry)
-(define-key cscope-mode-map (kbd "<return>") #'cscope-display-match)
+    (add-to-list 'load-path (expand-file-name "~/src/cscope"))
+    (require 'cscope)
+    (global-set-key (kbd "M-.") #'cscope-find-this-function-definition)
+    (global-set-key (kbd "M-,") #'cscope-find-this-C-symbol)
+    (global-set-key (kbd "C-c s") #'cscope-entry)
+    (define-key cscope-mode-map (kbd "<return>") #'cscope-display-match)
+
+    (cscope-eldoc-mode) ;; Enable cscope eldoc support
+  (setq next-error-recenter '(4)          ; Center the target buffer automatically.
+        cscope-show-function nil          ; Do not show the parent function.
+        cscope-highlight-face 'underline) ; Use 'underline instead of the default
+                                          ; 'highlight face
+#+END_SRC
+
+* gptel setup
+#+BEGIN_SRC emacs-lisp
+  (add-to-list 'load-path (expand-file-name "~/src/gptel"))
+  (add-to-list 'load-path (expand-file-name "~/src/gptel-agent"))
+  (require 'gptel)
+  (require 'gptel-transient)   ; gptel-menu
+  (require 'gptel-rewrite)     ; gptel-rewrite
+  (require 'gptel-context)     ; gptel-add, gptel-add-file
+  (require 'gptel-gh)
+  (require 'gptel-bedrock)
+  (require 'gptel-agent)
+  (require 'gptel-agent-tools)
+
+  (setq gptel-default-mode 'org-mode
+      gptel-cache t
+      gptel-model 'claude-opus-5.5
+      gptel-backend (gptel-make-gh-copilot "Copilot"))
+
+
+;; Register gptel-agent preset (reads agents/gptel-agent.md via gptel-make-preset).
+(gptel-agent-update)
+
+(add-to-list 'auto-mode-alist
+             '("\\.gptel\\'" . (lambda ()
+                                 (org-mode)
+                                 (gptel-mode)
+                                 ;; gptel-mode->gptel-org--restore-state sets
+                                 ;; gptel-tools from GPTEL_TOOLS: property for
+                                 ;; existing files.  For new files (no property),
+                                 ;; apply the gptel-agent preset to enable tools.
+                                 (unless gptel-tools
+                                   (gptel--apply-preset
+                                    'gptel-agent
+                                    (lambda (sym val)
+                                      (set (make-local-variable sym) val)))))))
 #+END_SRC
 
 * Provide
 #+BEGIN_SRC emacs-lisp
   ;; Make this config file available.
 ;; always at the end of file
-  (provide 'my-default)
+  (provide 'kia-config)
 #+END_SRC
 
