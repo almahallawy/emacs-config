@@ -504,6 +504,19 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 #+END_SRC
 
 * gptel setup
+** gptel dependencies
+gptel and gptel-agent are loaded from source (not package.el), so their
+Package-Requires are not installed automatically:
+- gptel:       transient (>= 0.7.8), compat
+- gptel-agent: compat, yaml, orderless (orderless used by introspection tools)
+#+BEGIN_SRC emacs-lisp
+  (use-package compat)
+  (use-package transient)
+  (use-package yaml)
+  (use-package orderless)
+#+END_SRC
+
+** gptel
 #+BEGIN_SRC emacs-lisp
   (add-to-list 'load-path (expand-file-name "~/src/gptel"))
   (add-to-list 'load-path (expand-file-name "~/src/gptel-agent"))
