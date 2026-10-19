@@ -553,6 +553,24 @@ Package-Requires are not installed automatically:
                                       (set (make-local-variable sym) val)))))))
 #+END_SRC
 
+** Copilot session token reset
+The Copilot session token is bound to the public IP.  A network change (e.g.
+VPN on/off) changes it, so a cached token can start returning HTTP 403
+before it expires.  gptel only renews on expiry, so clear it manually.
+#+BEGIN_SRC emacs-lisp
+(defun kia/gptel-gh-reset-token ()
+  "Discard the cached Copilot session token so gptel fetches a new one.
+The token is bound to the public IP; run this after switching VPN on/off
+if requests fail with HTTP 403."
+  (interactive)
+  (dolist (b (mapcar #'cdr gptel--known-backends))
+    (when (gptel--gh-p b)
+      (setf (gptel--gh-token b) nil)))
+  (when (file-exists-p gptel-gh-token-file)
+    (delete-file gptel-gh-token-file))
+  (message "Copilot session token cleared; next request will fetch a new one."))
+#+END_SRC
+
 * Provide
 #+BEGIN_SRC emacs-lisp
   ;; Make this config file available.
