@@ -21,6 +21,9 @@ Clone these into ~/src before the first start; they are loaded from there:
 - https://github.com/karthink/gptel-agent.git    -> ~/src/gptel-agent
 - https://github.com/jeremy-compostella/cscope   -> ~/src/cscope
 
+System packages:
+- pandoc (markdown-mode preview/export): sudo apt install pandoc
+
 * Packages
 #+BEGIN_SRC emacs-lisp
 ;; Packages
@@ -501,6 +504,16 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
         cscope-show-function nil          ; Do not show the parent function.
         cscope-highlight-face 'underline) ; Use 'underline instead of the default
                                           ; 'highlight face
+#+END_SRC
+
+* Markdown
+Requires pandoc for preview/export (see Prerequisites).
+#+BEGIN_SRC emacs-lisp
+(use-package markdown-mode
+  :ensure t
+  :mode (("README\\.md\\'" . gfm-mode)    ; GitHub-flavored
+         ("\\.md\\'" . markdown-mode))
+  :init (setq markdown-command "pandoc")) ; for preview/export
 #+END_SRC
 
 * gptel setup
