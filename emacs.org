@@ -584,11 +584,31 @@ if requests fail with HTTP 403."
   (message "Copilot session token cleared; next request will fetch a new one."))
 #+END_SRC
 
+** my-gptel.el (personal gptel extensions)
+The following sections tangle to a separate file, my-gptel.el, which is
+loaded here.  It is generated, like kia-config.el.
+#+BEGIN_SRC emacs-lisp
+(require 'my-gptel)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+;;; my-gptel.el --- Personal gptel extensions -*- lexical-binding: t -*-
+
+;; Generated from emacs.org -- do not edit directly.
+
+;;; Code:
+
+(require 'cl-lib)
+(require 'seq)
+(require 'tabulated-list)
+(require 'gptel)
+#+END_SRC
+
 ** Agent unleash (per-buffer tool confirmation toggle)
 Toggle tool-call confirmation in the current gptel buffer only, via a
 buffer-local `gptel-pre-tool-call-functions' hook.  Other buffers unaffected.
 C-c C-u in a gptel buffer toggles it.
-#+BEGIN_SRC emacs-lisp
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
 (defun my-gptel-agent-unleash--hook (_call)
   "Skip confirmation for every tool call."
   '(:confirm nil))
@@ -605,6 +625,133 @@ C-c C-u in a gptel buffer toggles it.
     (message "gptel agent unleashed (%s)" (buffer-name))))
 
 (keymap-set gptel-mode-map "C-c C-u" #'my-gptel-agent-unleash)
+#+END_SRC
+
+** gptel sessions list
+M-x my-gptel-sessions lists all gptel buffers and the state of their
+requests, refreshed every `my-gptel-sessions-refresh-interval' seconds
+while visible.  Keys: RET visit, k abort, u toggle unleash, g refresh.
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+;; gptel sessions list
+(defvar my-gptel-sessions-buffer "*gptel-sessions*"
+  "Name of the gptel sessions list buffer.")
+
+(defvar my-gptel-sessions-refresh-interval 5
+  "Seconds between automatic refreshes of the sessions list.")
+
+(defvar my-gptel-sessions--timer nil
+  "Timer refreshing the sessions list.")
+
+(defun my-gptel-sessions--fsm-buffer (fsm)
+  "Return the buffer of request FSM."
+  (plist-get (gptel-fsm-info fsm) :buffer))
+
+(defun my-gptel-sessions--status (state info)
+  "Describe request STATE with request INFO in words."
+  (pcase state
+    ('WAIT "waiting for LLM")
+    ('TYPE "receiving")
+    ('TOOL (if (plist-get info :tool-pending) "waiting C-c C-c" "running tools"))
+    ('DONE "done")
+    ('ERRS "error")
+    ('ABRT "aborted")
+    ('IDLE "idle")
+    (_ (symbol-name state))))
+
+(defun my-gptel-sessions--entry (buf active)
+  "Return the list entry for BUF.  ACTIVE is the list of running FSMs."
+  (with-current-buffer buf
+    (let* ((fsm (or (cl-find buf active :key #'my-gptel-sessions--fsm-buffer)
+                    gptel--fsm-last))
+           (state (if fsm (gptel-fsm-state fsm) 'IDLE))
+           (info (and fsm (gptel-fsm-info fsm)))
+           (running (and fsm (memq fsm active))))
+      (list buf
+            (vector (buffer-name)
+                    (propertize (symbol-name state)
+                                'face (if running 'success 'shadow))
+                    (my-gptel-sessions--status state info)
+                    (format "%s" (or (plist-get info :model) gptel-model))
+                    (if (memq #'my-gptel-agent-unleash--hook
+                              gptel-pre-tool-call-functions)
+                        "yes" "")
+                    (format "%s" (or (plist-get info :error) "")))))))
+
+(defun my-gptel-sessions--entries ()
+  "Return entries for all gptel buffers and buffers with running requests."
+  (let* ((active (mapcar #'cadr gptel--request-alist))
+         (bufs (seq-uniq
+                (append (seq-filter (lambda (b) (buffer-local-value 'gptel-mode b))
+                                    (buffer-list))
+                        (delq nil (mapcar #'my-gptel-sessions--fsm-buffer active))))))
+    (mapcar (lambda (b) (my-gptel-sessions--entry b active))
+            (seq-filter #'buffer-live-p bufs))))
+
+(defun my-gptel-sessions--stop-timer ()
+  "Cancel the refresh timer."
+  (when (timerp my-gptel-sessions--timer)
+    (cancel-timer my-gptel-sessions--timer))
+  (setq my-gptel-sessions--timer nil))
+
+(defun my-gptel-sessions--refresh ()
+  "Refresh the sessions list if visible; stop the timer if it is gone."
+  (if-let* ((buf (get-buffer my-gptel-sessions-buffer)))
+      (when (get-buffer-window buf t)
+        (with-current-buffer buf (tabulated-list-print t)))
+    (my-gptel-sessions--stop-timer)))
+
+(defun my-gptel-sessions-visit ()
+  "Jump to the gptel session at point."
+  (interactive)
+  (when-let* ((buf (tabulated-list-get-id)))
+    (pop-to-buffer buf)))
+
+(defun my-gptel-sessions-abort ()
+  "Abort the request of the gptel session at point."
+  (interactive)
+  (when-let* ((buf (tabulated-list-get-id)))
+    (when (y-or-n-p (format "Abort request in %s? " (buffer-name buf)))
+      (gptel-abort buf)
+      (tabulated-list-print t))))
+
+(defun my-gptel-sessions-toggle-unleash ()
+  "Toggle tool-call confirmation in the gptel session at point."
+  (interactive)
+  (when-let* ((buf (tabulated-list-get-id)))
+    (with-current-buffer buf (my-gptel-agent-unleash))
+    (tabulated-list-print t)))
+
+(defvar-keymap my-gptel-sessions-mode-map
+  "RET" #'my-gptel-sessions-visit
+  "k"   #'my-gptel-sessions-abort
+  "u"   #'my-gptel-sessions-toggle-unleash)
+
+(define-derived-mode my-gptel-sessions-mode tabulated-list-mode "gptel-sessions"
+  "Major mode listing gptel sessions."
+  (setq tabulated-list-format [("Buffer" 32 t) ("State" 6 t) ("Status" 18 t)
+                               ("Model" 18 t) ("Unleashed" 9 t) ("Error" 30 nil)]
+        tabulated-list-entries #'my-gptel-sessions--entries)
+  (tabulated-list-init-header)
+  (add-hook 'kill-buffer-hook #'my-gptel-sessions--stop-timer nil t)
+  (unless (timerp my-gptel-sessions--timer)
+    (setq my-gptel-sessions--timer
+          (run-with-timer my-gptel-sessions-refresh-interval
+                          my-gptel-sessions-refresh-interval
+                          #'my-gptel-sessions--refresh))))
+
+(defun my-gptel-sessions ()
+  "List all gptel sessions and the state of their requests."
+  (interactive)
+  (with-current-buffer (get-buffer-create my-gptel-sessions-buffer)
+    (unless (derived-mode-p 'my-gptel-sessions-mode)
+      (my-gptel-sessions-mode))
+    (tabulated-list-print t)
+    (pop-to-buffer (current-buffer))))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+(provide 'my-gptel)
+;;; my-gptel.el ends here
 #+END_SRC
 
 * Provide
