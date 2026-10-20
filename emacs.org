@@ -584,6 +584,29 @@ if requests fail with HTTP 403."
   (message "Copilot session token cleared; next request will fetch a new one."))
 #+END_SRC
 
+** Agent unleash (per-buffer tool confirmation toggle)
+Toggle tool-call confirmation in the current gptel buffer only, via a
+buffer-local `gptel-pre-tool-call-functions' hook.  Other buffers unaffected.
+C-c C-u in a gptel buffer toggles it.
+#+BEGIN_SRC emacs-lisp
+(defun my-gptel-agent-unleash--hook (_call)
+  "Skip confirmation for every tool call."
+  '(:confirm nil))
+
+(defun my-gptel-agent-unleash ()
+  "Toggle tool-call confirmation in the current gptel buffer only."
+  (interactive)
+  (if (memq #'my-gptel-agent-unleash--hook gptel-pre-tool-call-functions)
+      (progn (remove-hook 'gptel-pre-tool-call-functions
+                          #'my-gptel-agent-unleash--hook t)
+             (message "gptel agent reined in (%s)" (buffer-name)))
+    (add-hook 'gptel-pre-tool-call-functions
+              #'my-gptel-agent-unleash--hook nil t)
+    (message "gptel agent unleashed (%s)" (buffer-name))))
+
+(keymap-set gptel-mode-map "C-c C-u" #'my-gptel-agent-unleash)
+#+END_SRC
+
 * Provide
 #+BEGIN_SRC emacs-lisp
   ;; Make this config file available.
