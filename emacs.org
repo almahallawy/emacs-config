@@ -402,7 +402,9 @@ From: https://codeberg.org/jao/elibs/src/branch/main/completion.org
                (company-selection-wrap-around t)
                (company-tooltip-limit 15)
                (company-tooltip-align-annotations t)
-               (company-tooltip-offset-display 'lines)) ;; 'scrollbar
+               (company-tooltip-offset-display 'lines) ;; 'scrollbar
+               ;; Ours: company's popup would capture Up/Down and RET in shell buffers.
+               (company-global-modes '(not shell-mode)))
 
       :config
       (defun jao-complete-at-point ()
@@ -838,6 +840,69 @@ Running sub-agent requests follow their parent buffer's row."
 #+BEGIN_SRC emacs-lisp :tangle my-gptel.el
 (provide 'my-gptel)
 ;;; my-gptel.el ends here
+#+END_SRC
+
+* Shell
+Use M-x shell (comint).  Both Mickey and Prot use it day to day.
+- Mickey: https://www.masteringemacs.org/article/running-shells-in-emacs-overview
+- Mickey: https://www.masteringemacs.org/article/replacing-tmux-gnu-screen-emacs
+  ("My Workflow": ssh inside M-x shell + Tramp)
+- Prot:   https://github.com/protesilaos/dotfiles/blob/master/emacs/.emacs.d/prot-emacs-modules/prot-emacs-essentials.el
+  (sections "Generic interface for shells or REPLs (comint)"
+   and "Standard Unix Shell (M-x shell)")
+
+** Directory tracking (OSC 7)
+The shell reports its cwd after every prompt, so `default-directory'
+(C-x C-f, dired, compile) follows `cd'.  Needs the ~/.bashrc snippet below.
+- Mickey: running-shells-in-emacs-overview, "Directory Tracking" section
+  ("I strongly recommend you go to the trouble of getting it to work";
+   disable shell-dirtrack-mode so it doesn't interfere)
+- Prot: prot-emacs-essentials.el, comint section
+
+~/.bashrc (adapted from Mickey's `myprompt'; the INSIDE_EMACS guard is ours):
+#+begin_src sh :tangle no
+if [ -n "$INSIDE_EMACS" ]; then
+    __emacs_osc7() { printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
+    PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+fi
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+(with-eval-after-load 'comint
+  ;; Mickey + Prot: read OSC 7 cwd reports
+  (add-hook 'comint-output-filter-functions #'comint-osc-process-output)
+  ;; Prot: don't store repeated commands in history
+  (setq comint-input-ignoredups t))
+
+(with-eval-after-load 'shell
+  ;; Mickey: turn off regexp-based dirtrack, OSC 7 replaces it
+  (add-hook 'shell-mode-hook (lambda () (shell-dirtrack-mode -1))))
+#+END_SRC
+
+** Up/Down: history at prompt, movement elsewhere
+- Prot: https://github.com/protesilaos/dotfiles/blob/master/emacs/.emacs.d/prot-lisp/prot-shell.el
+  (`prot-shell-up-dwim' / `prot-shell-down-dwim')
+- Ours: uses the "matching" history commands, so typing a prefix
+  (e.g. git) then Up only cycles commands starting with it (like bash).
+
+#+BEGIN_SRC emacs-lisp
+(defun my/shell-up (arg)
+  "History at prompt, else move up.  Based on Prot's `prot-shell-up-dwim'."
+  (interactive "^p")
+  (if (comint-after-pmark-p)
+      (comint-previous-matching-input-from-input arg)
+    (forward-line (- arg))))
+
+(defun my/shell-down (arg)
+  "History at prompt, else move down.  Based on Prot's `prot-shell-down-dwim'."
+  (interactive "^p")
+  (if (comint-after-pmark-p)
+      (comint-next-matching-input-from-input arg)
+    (forward-line arg)))
+
+(with-eval-after-load 'shell
+  (define-key shell-mode-map (kbd "<up>")   #'my/shell-up)
+  (define-key shell-mode-map (kbd "<down>") #'my/shell-down))
 #+END_SRC
 
 * Provide
