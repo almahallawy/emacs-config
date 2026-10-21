@@ -633,11 +633,19 @@ requests, refreshed every `my-gptel-sessions-refresh-interval' seconds
 while visible.  Keys: RET visit, k abort, u toggle unleash, g refresh.
 #+BEGIN_SRC emacs-lisp :tangle my-gptel.el
 ;; gptel sessions list
-(defvar my-gptel-sessions-buffer "*gptel-sessions*"
-  "Name of the gptel sessions list buffer.")
+(defgroup my-gptel-sessions nil
+  "List gptel sessions and their request state."
+  :prefix "my-gptel-sessions-"
+  :group 'gptel)
 
-(defvar my-gptel-sessions-refresh-interval 5
-  "Seconds between automatic refreshes of the sessions list.")
+(defcustom my-gptel-sessions-buffer "*gptel-sessions*"
+  "Name of the gptel sessions list buffer."
+  :type 'string)
+
+(defcustom my-gptel-sessions-refresh-interval 5
+  "Seconds between automatic refreshes of the sessions list.
+A zero or negative value disables automatic refresh."
+  :type 'number)
 
 (defvar my-gptel-sessions--timer nil
   "Timer refreshing the sessions list.")
@@ -685,7 +693,8 @@ while visible.  Keys: RET visit, k abort, u toggle unleash, g refresh.
                                     (buffer-list))
                         (delq nil (mapcar #'my-gptel-sessions--fsm-buffer active))))))
     (mapcar (lambda (b) (my-gptel-sessions--entry b active))
-            (seq-filter #'buffer-live-p bufs))))
+            (sort (seq-filter #'buffer-live-p bufs)
+                  (lambda (a b) (string< (buffer-name a) (buffer-name b)))))))
 
 (defun my-gptel-sessions--stop-timer ()
   "Cancel the refresh timer."
@@ -730,10 +739,12 @@ while visible.  Keys: RET visit, k abort, u toggle unleash, g refresh.
   "Major mode listing gptel sessions."
   (setq tabulated-list-format [("Buffer" 32 t) ("State" 6 t) ("Status" 18 t)
                                ("Model" 18 t) ("Unleashed" 9 t) ("Error" 30 nil)]
-        tabulated-list-entries #'my-gptel-sessions--entries)
+        tabulated-list-entries #'my-gptel-sessions--entries
+        tabulated-list-sort-key '("Buffer" . nil))
   (tabulated-list-init-header)
   (add-hook 'kill-buffer-hook #'my-gptel-sessions--stop-timer nil t)
-  (unless (timerp my-gptel-sessions--timer)
+  (unless (or (timerp my-gptel-sessions--timer)
+              (<= my-gptel-sessions-refresh-interval 0))
     (setq my-gptel-sessions--timer
           (run-with-timer my-gptel-sessions-refresh-interval
                           my-gptel-sessions-refresh-interval
