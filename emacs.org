@@ -630,7 +630,9 @@ C-c C-u in a gptel buffer toggles it.
 ** gptel sessions list
 M-x my-gptel-sessions lists all gptel buffers and the state of their
 requests, refreshed every `my-gptel-sessions-refresh-interval' seconds
-while visible.  Keys: RET visit, k abort, u toggle unleash, g refresh.
+while visible.  Running gptel-agent sub-agents are shown as extra rows
+under their parent buffer.  Keys: RET visit, k abort, u toggle unleash,
+g refresh.
 #+BEGIN_SRC emacs-lisp :tangle my-gptel.el
 ;; gptel sessions list
 (defgroup my-gptel-sessions nil
@@ -653,6 +655,38 @@ A zero or negative value disables automatic refresh."
 (defun my-gptel-sessions--fsm-buffer (fsm)
   "Return the buffer of request FSM."
   (plist-get (gptel-fsm-info fsm) :buffer))
+
+(defun my-gptel-sessions--subagent-ov (fsm)
+  "Return the gptel-agent task overlay of FSM, if it is a sub-agent."
+  (let ((ov (plist-get (gptel-fsm-info fsm) :context)))
+    (and (overlayp ov) (overlay-get ov 'gptel-agent) ov)))
+
+(defun my-gptel-sessions--tag-task-overlay (orig where &optional type desc)
+  "Call ORIG with WHERE, TYPE, DESC; record TYPE and DESC on the overlay."
+  (let ((ov (funcall orig where type desc)))
+    (overlay-put ov 'my-gptel-type type)
+    (overlay-put ov 'my-gptel-desc desc)
+    ov))
+
+(with-eval-after-load 'gptel-agent-tools
+  (advice-add 'gptel-agent--task-overlay :around
+              #'my-gptel-sessions--tag-task-overlay))
+
+(defun my-gptel-sessions--id-buffer (id)
+  "Return the buffer of row ID (a buffer or a request FSM)."
+  (if (bufferp id) id (my-gptel-sessions--fsm-buffer id)))
+
+(defun my-gptel-sessions--abort-fsm (fsm)
+  "Abort the running request FSM, like `gptel-abort' but for one request."
+  (when-let* ((entry (cl-find fsm gptel--request-alist :key #'cadr))
+              (info (gptel-fsm-info fsm)))
+    (with-demoted-errors "Callback error: %S"
+      (and-let* ((cb (plist-get info :callback))
+                 ((functionp cb)))
+        (funcall cb 'abort info)))
+    (funcall (cddr entry))
+    (setf (alist-get (car entry) gptel--request-alist nil 'remove) nil)
+    (gptel--fsm-transition fsm 'ABRT)))
 
 (defun my-gptel-sessions--status (state info)
   "Describe request STATE with request INFO in words."
@@ -685,14 +719,40 @@ A zero or negative value disables automatic refresh."
                         "yes" "")
                     (format "%s" (or (plist-get info :error) "")))))))
 
+(defun my-gptel-sessions--subagent-entry (fsm)
+  "Return the list entry for running sub-agent request FSM."
+  (let* ((ov (my-gptel-sessions--subagent-ov fsm))
+         (info (gptel-fsm-info fsm))
+         (state (gptel-fsm-state fsm))
+         (count (or (overlay-get ov 'count) 0)))
+    (list fsm
+          (vector (format "  ↳ %s: %s"
+                          (or (overlay-get ov 'my-gptel-type) "agent")
+                          (or (overlay-get ov 'my-gptel-desc) ""))
+                  (propertize (symbol-name state) 'face 'success)
+                  (format "%s (%d tool%s)"
+                          (my-gptel-sessions--status state info)
+                          count (if (= count 1) "" "s"))
+                  (format "%s" (or (plist-get info :model) ""))
+                  ""
+                  (format "%s" (or (plist-get info :error) ""))))))
+
 (defun my-gptel-sessions--entries ()
-  "Return entries for all gptel buffers and buffers with running requests."
-  (let* ((active (mapcar #'cadr gptel--request-alist))
+  "Return entries for all gptel buffers and buffers with running requests.
+Running sub-agent requests follow their parent buffer's row."
+  (let* ((all (mapcar #'cadr gptel--request-alist))
+         (subs (seq-filter #'my-gptel-sessions--subagent-ov all))
+         (active (seq-difference all subs))
          (bufs (seq-uniq
                 (append (seq-filter (lambda (b) (buffer-local-value 'gptel-mode b))
                                     (buffer-list))
-                        (delq nil (mapcar #'my-gptel-sessions--fsm-buffer active))))))
-    (mapcar (lambda (b) (my-gptel-sessions--entry b active))
+                        (delq nil (mapcar #'my-gptel-sessions--fsm-buffer all))))))
+    (mapcan (lambda (b)
+              (cons (my-gptel-sessions--entry b active)
+                    (mapcar #'my-gptel-sessions--subagent-entry
+                            (seq-filter (lambda (f)
+                                          (eq (my-gptel-sessions--fsm-buffer f) b))
+                                        subs))))
             (sort (seq-filter #'buffer-live-p bufs)
                   (lambda (a b) (string< (buffer-name a) (buffer-name b)))))))
 
@@ -710,23 +770,38 @@ A zero or negative value disables automatic refresh."
     (my-gptel-sessions--stop-timer)))
 
 (defun my-gptel-sessions-visit ()
-  "Jump to the gptel session at point."
+  "Jump to the gptel session (or sub-agent task) at point."
   (interactive)
-  (when-let* ((buf (tabulated-list-get-id)))
-    (pop-to-buffer buf)))
+  (when-let* ((id (tabulated-list-get-id))
+              (buf (my-gptel-sessions--id-buffer id)))
+    (pop-to-buffer buf)
+    (when-let* (((not (bufferp id)))
+                (ov (my-gptel-sessions--subagent-ov id))
+                (pos (overlay-start ov)))
+      (goto-char pos))))
 
 (defun my-gptel-sessions-abort ()
-  "Abort the request of the gptel session at point."
+  "Abort the request (session or sub-agent) at point."
   (interactive)
-  (when-let* ((buf (tabulated-list-get-id)))
-    (when (y-or-n-p (format "Abort request in %s? " (buffer-name buf)))
-      (gptel-abort buf)
+  (when-let* ((id (tabulated-list-get-id))
+              (buf (my-gptel-sessions--id-buffer id))
+              (fsm (if (bufferp id)
+                       (cl-find-if
+                        (lambda (f)
+                          (and (eq (my-gptel-sessions--fsm-buffer f) buf)
+                               (not (my-gptel-sessions--subagent-ov f))))
+                        (mapcar #'cadr gptel--request-alist))
+                     id)))
+    (when (y-or-n-p (format "Abort %s in %s? "
+                            (if (bufferp id) "request" "sub-agent")
+                            (buffer-name buf)))
+      (my-gptel-sessions--abort-fsm fsm)
       (tabulated-list-print t))))
 
 (defun my-gptel-sessions-toggle-unleash ()
   "Toggle tool-call confirmation in the gptel session at point."
   (interactive)
-  (when-let* ((buf (tabulated-list-get-id)))
+  (when-let* ((buf (my-gptel-sessions--id-buffer (tabulated-list-get-id))))
     (with-current-buffer buf (my-gptel-agent-unleash))
     (tabulated-list-print t)))
 
@@ -737,10 +812,11 @@ A zero or negative value disables automatic refresh."
 
 (define-derived-mode my-gptel-sessions-mode tabulated-list-mode "gptel-sessions"
   "Major mode listing gptel sessions."
-  (setq tabulated-list-format [("Buffer" 32 t) ("State" 6 t) ("Status" 18 t)
-                               ("Model" 18 t) ("Unleashed" 9 t) ("Error" 30 nil)]
+  ;; Not sortable: rows are ordered so sub-agents follow their parent.
+  (setq tabulated-list-format [("Buffer" 40 nil) ("State" 6 nil) ("Status" 26 nil)
+                               ("Model" 18 nil) ("Unleashed" 9 nil) ("Error" 30 nil)]
         tabulated-list-entries #'my-gptel-sessions--entries
-        tabulated-list-sort-key '("Buffer" . nil))
+        tabulated-list-sort-key nil)
   (tabulated-list-init-header)
   (add-hook 'kill-buffer-hook #'my-gptel-sessions--stop-timer nil t)
   (unless (or (timerp my-gptel-sessions--timer)
