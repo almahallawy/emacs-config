@@ -402,9 +402,7 @@ From: https://codeberg.org/jao/elibs/src/branch/main/completion.org
                (company-selection-wrap-around t)
                (company-tooltip-limit 15)
                (company-tooltip-align-annotations t)
-               (company-tooltip-offset-display 'lines) ;; 'scrollbar
-               ;; Ours: company's popup would capture Up/Down and RET in shell buffers.
-               (company-global-modes '(not shell-mode)))
+               (company-tooltip-offset-display 'lines)) ;; 'scrollbar
 
       :config
       (defun jao-complete-at-point ()
