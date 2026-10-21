@@ -408,9 +408,13 @@ From: https://codeberg.org/jao/elibs/src/branch/main/completion.org
 
       :config
       (defun jao-complete-at-point ()
-        "Complete using company unless we're in the minibuffer."
+        "Complete using company unless we're in the minibuffer.
+Ours: fall back to `completion-at-point' when company is off
+(e.g. shell-mode, excluded via `company-global-modes')."
         (interactive)
-        (if (window-minibuffer-p) (completion-at-point) (company-manual-begin)))
+        (if (or (window-minibuffer-p) (not (bound-and-true-p company-mode)))
+            (completion-at-point)
+          (company-manual-begin)))
 
       (defun jao-company-use-in-tab ()
         (global-set-key [remap completion-at-point] #'jao-complete-at-point)
