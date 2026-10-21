@@ -861,14 +861,18 @@ The shell reports its cwd after every prompt, so `default-directory'
 
 ~/.bashrc (OSC 7 adapted from Mickey's `myprompt'; the INSIDE_EMACS guard is ours.
 Pager part from Prot's .bashrc, quoted in prot-emacs-essentials.el "Standard
-Unix Shell" section: only when TERM=dumb, so vterm/term keep using less):
+Unix Shell" section: only when TERM=dumb, so vterm/term keep using less.
+TERM=dumb-emacs-ansi (ncurses terminfo: 8 colors, no cursor movement) lets
+git/ls/grep emit color; COLORTERM=1 is Prot's conservative color hint):
 #+begin_src sh :tangle no
 if [ -n "$INSIDE_EMACS" ]; then
     __emacs_osc7() { printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
     PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-    if [ "$TERM" = "dumb" ]; then
+    if [ "$TERM" = "dumb" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
         export PAGER=cat
         export GIT_PAGER=cat
+        export TERM=dumb-emacs-ansi
+        export COLORTERM=1
     fi
 fi
 #+end_src
@@ -883,6 +887,14 @@ fi
 (with-eval-after-load 'shell
   ;; Mickey: turn off regexp-based dirtrack, OSC 7 replaces it
   (add-hook 'shell-mode-hook (lambda () (shell-dirtrack-mode -1))))
+#+END_SRC
+
+** Colors in M-x compile
+Shell colors already work (ansi-color-for-comint-mode is t by default).
+- Prot: prot-emacs-essentials.el, "Compilation interface (M-x compile)"
+#+BEGIN_SRC emacs-lisp
+;; Prot: render ANSI colors (gcc/make errors) instead of raw ^[[31m codes
+(add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
 #+END_SRC
 
 ** Up/Down: history at prompt, movement elsewhere
