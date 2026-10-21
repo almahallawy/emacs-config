@@ -890,14 +890,19 @@ fi
   "History at prompt, else move up.  Based on Prot's `prot-shell-up-dwim'."
   (interactive "^p")
   (if (comint-after-pmark-p)
-      (comint-previous-matching-input-from-input arg)
+      (progn
+        ;; Ours: comint checks `last-command' to continue a search.
+        (setq this-command 'comint-previous-matching-input-from-input)
+        (comint-previous-matching-input-from-input arg))
     (forward-line (- arg))))
 
 (defun my/shell-down (arg)
   "History at prompt, else move down.  Based on Prot's `prot-shell-down-dwim'."
   (interactive "^p")
   (if (comint-after-pmark-p)
-      (comint-next-matching-input-from-input arg)
+      (progn
+        (setq this-command 'comint-next-matching-input-from-input)
+        (comint-next-matching-input-from-input arg))
     (forward-line arg)))
 
 (with-eval-after-load 'shell
