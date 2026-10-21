@@ -859,11 +859,17 @@ The shell reports its cwd after every prompt, so `default-directory'
    disable shell-dirtrack-mode so it doesn't interfere)
 - Prot: prot-emacs-essentials.el, comint section
 
-~/.bashrc (adapted from Mickey's `myprompt'; the INSIDE_EMACS guard is ours):
+~/.bashrc (OSC 7 adapted from Mickey's `myprompt'; the INSIDE_EMACS guard is ours.
+Pager part from Prot's .bashrc, quoted in prot-emacs-essentials.el "Standard
+Unix Shell" section: only when TERM=dumb, so vterm/term keep using less):
 #+begin_src sh :tangle no
 if [ -n "$INSIDE_EMACS" ]; then
     __emacs_osc7() { printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
     PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+    if [ "$TERM" = "dumb" ]; then
+        export PAGER=cat
+        export GIT_PAGER=cat
+    fi
 fi
 #+end_src
 
