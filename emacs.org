@@ -929,6 +929,14 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
 #+BEGIN_SRC emacs-lisp
 ;; Prot: render ANSI colors (gcc/make errors) instead of raw ^[[31m codes
 (add-hook 'compilation-filter-hook #'ansi-color-compilation-filter)
+
+;; Ours: default ANSI blue (blue2) is for light backgrounds, unreadable
+;; on black.  Use a lighter blue (like GNOME Terminal) for prompt dir, ls dirs.
+(with-eval-after-load 'ansi-color
+  (set-face-attribute 'ansi-color-blue nil
+                      :foreground "#5c9cf5" :background "#5c9cf5")
+  (set-face-attribute 'ansi-color-bright-blue nil
+                      :foreground "#82b4ff" :background "#82b4ff"))
 #+END_SRC
 
 ** Up/Down: history at prompt, movement elsewhere
