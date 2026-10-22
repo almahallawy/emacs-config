@@ -889,7 +889,10 @@ fi
   ;; Mickey + Prot: read OSC 7 cwd reports
   (add-hook 'comint-output-filter-functions #'comint-osc-process-output)
   ;; Prot: don't store repeated commands in history
-  (setq comint-input-ignoredups t))
+  (setq comint-input-ignoredups t)
+  ;; Ours: keep the view after C-l (terminal-style clear); don't re-scroll
+  ;; to fill the window with old output when new output arrives.
+  (setq comint-scroll-show-maximum-output nil))
 
 (with-eval-after-load 'shell
   ;; Mickey: turn off regexp-based dirtrack, OSC 7 replaces it
