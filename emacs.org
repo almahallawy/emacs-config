@@ -908,7 +908,13 @@ TERM=dumb-emacs-ansi (ncurses terminfo: 8 colors, no cursor movement) lets
 git/ls/grep emit color; COLORTERM=1 is Prot's conservative color hint):
 #+begin_src sh :tangle no
 if [ -n "$INSIDE_EMACS" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
-    __emacs_osc7() { printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
+    # Ours: under ssh, report user@IP we connected to (works without DNS
+    # or ~/.ssh/config); hostname after # is only for the buffer name.
+    __emacs_osc7() {
+        local host=$HOSTNAME
+        [ -n "$SSH_CONNECTION" ] && { local c=($SSH_CONNECTION); host="$USER@${c[2]}"; }
+        printf "\e]7;file://%s%s#%s\e\\" "$host" "$PWD" "$HOSTNAME"
+    }
     PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
     if [ "$TERM" = "dumb" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
         export PAGER=cat
@@ -960,9 +966,12 @@ Mickey's workflow: ssh inside M-x shell + Tramp for files.  But the built-in
   - HOST is this machine -> local PATH (as before)
   - shell started via TRAMP -> keep the prefix it started on
     (method/user/hops), swap in PATH
-  - local shell where you typed `ssh HOST' (even ssh A then ssh B)
-    -> /ssh:HOST:PATH.  HOST is the remote's $HOSTNAME, so it must be
-    reachable by that name (or have a ~/.ssh/config Host entry).
+  - local shell where you typed `ssh user@IP' (even ssh A then ssh B)
+    -> /ssh:user@IP:PATH.  The remote bashrc sends user@IP from
+    $SSH_CONNECTION, so no DNS name or ~/.ssh/config entry is needed and
+    known_hosts already has the IP.
+  - Buffer name shows the hostname instead: *shell user@host:PATH*
+    (hostname sent after # in the OSC 7 URL).
 - Sets `default-directory' directly; no TRAMP connection is opened from the
   process filter (would block, maybe prompt for a password).  The connection
   is made on first use (C-x C-f, dired, TAB).
@@ -977,17 +986,26 @@ Mickey's workflow: ssh inside M-x shell + Tramp for files.  But the built-in
   (setq my/shell--origin (file-remote-p default-directory)))
 (add-hook 'shell-mode-hook #'my/shell--record-origin)
 
+(defvar-local my/shell--label nil
+  "\"user@hostname\" of the remote the shell is on, for the buffer name.")
+
 (defun my/ansi-osc-directory-tracker (_ text)
   "Like `ansi-osc-directory-tracker', but follow remote hosts via TRAMP."
   (let* ((url (url-generic-parse-url text))
+         (user (url-user url))
          (host (url-host url))
          (path (url-unhex-string (url-filename url))))
     (when (and (equal (url-type url) "file") (file-name-absolute-p path))
-      (let ((dir (cond ((or (null host) (equal host "")
-                            (string= host (downcase (system-name))))
-                        path)
-                       (my/shell--origin (concat my/shell--origin path))
-                       (t (format "/ssh:%s:%s" host path)))))
+      (let* ((localp (or (null host) (equal host "")
+                         (string= host (downcase (system-name)))))
+             (dir (cond (localp path)
+                        (my/shell--origin (concat my/shell--origin path))
+                        (t (format "/ssh:%s%s:%s"
+                                   (if user (concat user "@") "") host path)))))
+        (setq my/shell--label
+              (and (not localp)
+                   (concat (if user (concat user "@") "")
+                           (or (url-target url) host))))
         (setq default-directory (file-name-as-directory dir))))))
 
 (with-eval-after-load 'ansi-osc
@@ -1053,7 +1071,11 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
 
 #+BEGIN_SRC emacs-lisp
 (defun my/shell--name (dir)
-  (format "*shell %s*" (abbreviate-file-name (directory-file-name dir))))
+  (let ((d (abbreviate-file-name (directory-file-name dir))))
+    ;; Ours: remote via ssh-in-shell: show user@hostname, not the TRAMP path
+    (if (and (bound-and-true-p my/shell--label) (file-remote-p dir))
+        (format "*shell %s:%s*" my/shell--label (file-remote-p d 'localname))
+      (format "*shell %s*" d))))
 
 (defun my/shell--rename-on-cd (_output)
   "Rename the shell buffer when `default-directory' changes."
