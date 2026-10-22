@@ -916,6 +916,9 @@ fi
 (with-eval-after-load 'shell
   ;; Prot: kill the buffer when the shell exits (typing `exit')
   (setq shell-kill-buffer-on-exit t)
+  ;; Prot: colour unknown commands (not on PATH) as you type.
+  ;; Bash aliases/functions look undefined unless in `shell-highlight-undef-aliases'.
+  (setq shell-highlight-undef-enable t)
   ;; Mickey: turn off regexp-based dirtrack, OSC 7 replaces it
   (add-hook 'shell-mode-hook (lambda () (shell-dirtrack-mode -1))))
 #+END_SRC
