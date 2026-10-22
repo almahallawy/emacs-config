@@ -571,12 +571,35 @@ Package-Requires are not installed automatically:
                                       (set (make-local-variable sym) val)))))))
 #+END_SRC
 
+** my-gptel.el (personal gptel extensions)
+The following sections tangle to a separate file, my-gptel.el, which is
+loaded here.  It is generated, like kia-config.el.  After tangling,
+recompile it (the .elc is loaded if present):
+  emacs --batch -L ~/src/gptel -f batch-byte-compile ~/src/emacs-config/my-gptel.el
+#+BEGIN_SRC emacs-lisp
+(require 'my-gptel)
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+;;; my-gptel.el --- Personal gptel extensions -*- lexical-binding: t -*-
+
+;; Generated from emacs.org -- do not edit directly.
+
+;;; Code:
+
+(require 'cl-lib)
+(require 'seq)
+(require 'tabulated-list)
+(require 'gptel)
+(require 'gptel-gh)
+#+END_SRC
+
 ** Copilot session token reset
 The Copilot session token is bound to the public IP.  A network change (e.g.
 VPN on/off) changes it, so a cached token can start returning HTTP 403
 before it expires.  gptel only renews on expiry, so clear it manually.
-#+BEGIN_SRC emacs-lisp
-(defun kia/gptel-gh-reset-token ()
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+(defun my-gptel-gh-reset-token ()
   "Discard the cached Copilot session token so gptel fetches a new one.
 The token is bound to the public IP; run this after switching VPN on/off
 if requests fail with HTTP 403."
@@ -594,32 +617,12 @@ Text copied from a response carries the `gptel' text property (response /
 tool-call markers).  Pasted into a prompt, gptel would send it as an
 assistant turn or a bogus tool call, breaking the request.  Exclude these
 properties when yanking in gptel-mode buffers.
-#+BEGIN_SRC emacs-lisp
-(defun kia/gptel-strip-props-on-yank ()
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+(defun my-gptel-strip-props-on-yank ()
   "Don't carry gptel's role-tracking properties into yanked text."
   (setq-local yank-excluded-properties
               (append '(gptel gptel-history) yank-excluded-properties)))
-(add-hook 'gptel-mode-hook #'kia/gptel-strip-props-on-yank)
-#+END_SRC
-
-** my-gptel.el (personal gptel extensions)
-The following sections tangle to a separate file, my-gptel.el, which is
-loaded here.  It is generated, like kia-config.el.
-#+BEGIN_SRC emacs-lisp
-(require 'my-gptel)
-#+END_SRC
-
-#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
-;;; my-gptel.el --- Personal gptel extensions -*- lexical-binding: t -*-
-
-;; Generated from emacs.org -- do not edit directly.
-
-;;; Code:
-
-(require 'cl-lib)
-(require 'seq)
-(require 'tabulated-list)
-(require 'gptel)
+(add-hook 'gptel-mode-hook #'my-gptel-strip-props-on-yank)
 #+END_SRC
 
 ** Agent unleash (per-buffer tool confirmation toggle)
