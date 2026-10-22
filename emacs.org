@@ -7,7 +7,8 @@
 * Generate the emacs configuration file
  M-x org-babel-tangle (C-c C-v t)
 
-This will generate: kia-config.el
+This will generate: kia-config.el and my-gptel.el (my-gptel.el is
+byte-compiled automatically once this config is loaded).
 Add the following to your ~/.emacs file (keep Custom's block below it):
 
 (load "~/src/emacs-config/.emacs")
