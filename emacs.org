@@ -967,7 +967,9 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
 
 (with-eval-after-load 'shell
   (define-key shell-mode-map (kbd "<up>")   #'my/shell-up)
-  (define-key shell-mode-map (kbd "<down>") #'my/shell-down))
+  (define-key shell-mode-map (kbd "<down>") #'my/shell-down)
+  ;; Prot: easier key for clearing the buffer (default C-c M-o)
+  (define-key shell-mode-map (kbd "C-c C-k") #'comint-clear-buffer))
 #+END_SRC
 
 ** F1: one shell per directory
