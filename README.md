@@ -11,7 +11,7 @@ My Emacs configuration, written as a literate Org file.
 | `kia-config.el` | Generated from `emacs.org` (tangle). General config. | no |
 | `my-gptel.el` | Generated from `emacs.org`. Personal gptel extensions (see below). | no |
 | `my-gptel.elc` | Compiled `my-gptel.el`, rebuilt automatically after each tangle. | no |
-| `cscope-update`, `ec`, `emacs_bash` | Helper scripts. | yes |
+| `cscope-update`, `ec` | Helper scripts. | yes |
 | `emacs-gdb.txt` | Notes on debugging Emacs with gdb. | yes |
 
 Never edit `kia-config.el` or `my-gptel.el` by hand. They are overwritten on
