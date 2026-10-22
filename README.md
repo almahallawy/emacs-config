@@ -27,7 +27,14 @@ every tangle.
    git clone https://github.com/karthink/gptel-agent.git
    git clone https://github.com/jeremy-compostella/cscope
    ```
-2. **System packages:** `sudo apt install pandoc` (markdown preview/export).
+2. **System packages:**
+   ```
+   sudo apt install pandoc            # markdown preview/export
+   sudo apt install libpoppler-glib-dev libpoppler-private-dev libpng-dev \
+        zlib1g-dev autoconf automake gcc make pkg-config   # pdf-tools
+   ```
+   pdf-tools compiles its `epdfinfo` server on the first start (~30 s).
+   After a pdf-tools upgrade, run `M-x pdf-tools-install` to rebuild it.
 3. **`~/.emacs`:** one line. Keep Emacs' `custom-set-variables` block below it,
    so Custom's writes stay out of git:
    ```elisp
