@@ -857,11 +857,6 @@ Running sub-agent requests follow their parent buffer's row."
     (pop-to-buffer (current-buffer))))
 #+END_SRC
 
-#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
-(provide 'my-gptel)
-;;; my-gptel.el ends here
-#+END_SRC
-
 * Shell
 Use M-x shell (comint).  Both Mickey and Prot use it day to day.
 - Mickey: https://www.masteringemacs.org/article/running-shells-in-emacs-overview
