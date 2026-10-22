@@ -432,7 +432,9 @@ Ours: fall back to `completion-at-point' when company is off
              ("C-h" . #'company-show-doc-buffer)
              ("M-." . #'company-show-location)
 
-             :filter (or (not (derived-mode-p 'eshell-mode))
+             ;; Ours: shell-mode added; RET only picks a candidate after
+             ;; explicit C-n/C-p/TAB, otherwise it runs the command.
+             :filter (or (not (derived-mode-p 'eshell-mode 'shell-mode))
                          (company-explicit-action-p))
              ("<return>" . #'company-complete-selection)
              ("RET" . #'company-complete-selection))
