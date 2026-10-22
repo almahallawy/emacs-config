@@ -582,6 +582,7 @@ Package-Requires are not installed automatically:
 
   (setq gptel-default-mode 'org-mode
       gptel-cache t
+      gptel-expert-commands t   ; gptel-menu: Logging (-l, L) and Dry Run (I, J)
       gptel-model 'claude-opus-5.5
       gptel-backend (gptel-make-gh-copilot "Copilot"))
 
