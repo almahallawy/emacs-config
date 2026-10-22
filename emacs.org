@@ -743,6 +743,10 @@ A zero or negative value disables automatic refresh."
     ('IDLE "idle")
     (_ (symbol-name state))))
 
+(defun my-gptel-sessions--backend-name (backend)
+  "Return the name of BACKEND, or \"\" if none."
+  (if (gptel-backend-p backend) (gptel-backend-name backend) ""))
+
 (defun my-gptel-sessions--entry (buf active)
   "Return the list entry for BUF.  ACTIVE is the list of running FSMs."
   (with-current-buffer buf
@@ -756,7 +760,9 @@ A zero or negative value disables automatic refresh."
                     (propertize (symbol-name state)
                                 'face (if running 'success 'shadow))
                     (my-gptel-sessions--status state info)
-                    (format "%s" (or (plist-get info :model) gptel-model))
+                    (my-gptel-sessions--backend-name
+                     (if running (plist-get info :backend) gptel-backend))
+                    (format "%s" (if running (plist-get info :model) gptel-model))
                     (if (memq #'my-gptel-agent-unleash--hook
                               gptel-pre-tool-call-functions)
                         "yes" "")
@@ -776,6 +782,7 @@ A zero or negative value disables automatic refresh."
                   (format "%s (%d tool%s)"
                           (my-gptel-sessions--status state info)
                           count (if (= count 1) "" "s"))
+                  (my-gptel-sessions--backend-name (plist-get info :backend))
                   (format "%s" (or (plist-get info :model) ""))
                   ""
                   (format "%s" (or (plist-get info :error) ""))))))
@@ -857,7 +864,8 @@ Running sub-agent requests follow their parent buffer's row."
   "Major mode listing gptel sessions."
   ;; Not sortable: rows are ordered so sub-agents follow their parent.
   (setq tabulated-list-format [("Buffer" 40 nil) ("State" 6 nil) ("Status" 26 nil)
-                               ("Model" 18 nil) ("Unleashed" 9 nil) ("Error" 30 nil)]
+                               ("Backend" 12 nil) ("Model" 18 nil)
+                               ("Unleashed" 9 nil) ("Error" 30 nil)]
         tabulated-list-entries #'my-gptel-sessions--entries
         tabulated-list-sort-key nil)
   (tabulated-list-init-header)
