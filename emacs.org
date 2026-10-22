@@ -1006,7 +1006,10 @@ Mickey's workflow: ssh inside M-x shell + Tramp for files.  But the built-in
               (and (not localp)
                    (concat (if user (concat user "@") "")
                            (or (url-target url) host))))
-        (setq default-directory (file-name-as-directory dir))))))
+        (setq default-directory (file-name-as-directory dir))
+        ;; Ours: shell.el sets this to t for shells started locally, which
+        ;; disables TRAMP during completion; follow the current dir instead.
+        (setq-local pcomplete-remote-file-ignore (not (file-remote-p dir)))))))
 
 (with-eval-after-load 'ansi-osc
   (setf (alist-get "7" ansi-osc-handlers nil nil #'equal)
