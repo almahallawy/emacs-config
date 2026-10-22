@@ -905,6 +905,8 @@ fi
   (add-hook 'comint-output-filter-functions #'comint-osc-process-output)
   ;; Prot: don't store repeated commands in history
   (setq comint-input-ignoredups t)
+  ;; Prot: prompt can't be deleted by accident (C-w, DEL at prompt start)
+  (setq comint-prompt-read-only t)
   ;; Ours: keep the view after C-l (terminal-style clear); don't re-scroll
   ;; to fill the window with old output when new output arrives.
   (setq comint-scroll-show-maximum-output nil))
