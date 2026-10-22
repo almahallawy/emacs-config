@@ -932,6 +932,10 @@ if [ -n "$INSIDE_EMACS" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
         # Ours: uutils ls (Ubuntu default) refuses color when TERM=dumb*,
         # even with --color=always; GNU ls (gnuls) doesn't.
         command -v gnuls >/dev/null && alias ls='gnuls --color=auto'
+        # Ours: tmux refuses dumb-emacs-ansi (terminfo has hc, "hardcopy");
+        # plain dumb works for ls/new -d/kill-session.  Attach still needs
+        # a real terminal (vterm/Ptyxis).
+        tmux() { TERM=dumb command tmux "$@"; }
         # Ours: Debian PS1 colours only for xterm/256color; force it here.
         PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
     fi
