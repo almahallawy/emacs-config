@@ -587,12 +587,17 @@ Manual compile (e.g. tangling from a bare emacs --batch):
   emacs --batch -L ~/src/gptel -L ~/src/gptel-agent -f batch-byte-compile ~/src/emacs-config/my-gptel.el
 #+BEGIN_SRC emacs-lisp
 (require 'my-gptel)
+;; Optional private extensions: load any my-gptel-*.el tangled from other org
+;; files in this directory (none present = nothing loaded).
+(dolist (f (directory-files kia-emacs-directory nil "\\`my-gptel-.+\\.el\\'"))
+  (require (intern (file-name-sans-extension f)) nil t))
 
 (defun my-gptel-compile-after-tangle ()
-  "Byte-compile my-gptel.el right after it is tangled.
+  "Byte-compile my-gptel*.el right after it is tangled.
 Runs in the tangled file's buffer (`org-babel-post-tangle-hook')."
   (when (and buffer-file-name
-             (string= (file-name-nondirectory buffer-file-name) "my-gptel.el"))
+             (string-match-p "\\`my-gptel.*\\.el\\'"
+                             (file-name-nondirectory buffer-file-name)))
     (byte-compile-file buffer-file-name)))
 (add-hook 'org-babel-post-tangle-hook #'my-gptel-compile-after-tangle)
 #+END_SRC
@@ -872,6 +877,11 @@ Running sub-agent requests follow their parent buffer's row."
       (my-gptel-sessions-mode))
     (tabulated-list-print t)
     (pop-to-buffer (current-buffer))))
+#+END_SRC
+
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+(provide 'my-gptel)
+;;; my-gptel.el ends here
 #+END_SRC
 
 * Shell

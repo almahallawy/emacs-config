@@ -14,7 +14,7 @@ My Emacs configuration, written as a literate Org file.
 | `cscope-update`, `ec` | Helper scripts. | yes |
 | `emacs-gdb.txt` | Notes on debugging Emacs with gdb. | yes |
 
-Never edit `kia-config.el` or `my-gptel.el` by hand. They are overwritten on
+Never edit `kia-config.el` or `my-gptel*.el` by hand. They are overwritten on
 every tangle.
 
 ## Setting up a new machine
@@ -44,13 +44,12 @@ every tangle.
 6. **Shell (optional):** append the `~/.bashrc` snippet from `emacs.org`,
    section *Shell > Directory tracking (OSC 7)*. Needed for prompt colours and
    directory tracking in `M-x shell`.
-   token, see below.
+7. **Secrets** go in `~/.authinfo.gpg` (never in this repo), e.g. tokens
 
 ## Day-to-day: changing the config
 
-1. Edit `emacs.org`.
-2. `C-c C-v t` (`org-babel-tangle`) in the `emacs.org` buffer. This writes
-   `kia-config.el` and `my-gptel.el`, and compiles `my-gptel.el`.
+2. `C-c C-v t` (`org-babel-tangle`) in that org buffer. This writes
+   `my-gptel*.el` files.
 3. Restart Emacs (or eval the changed block).
 4. Commit `emacs.org` (and `.emacs` if changed).
 
@@ -74,6 +73,7 @@ Personal additions (all in `my-gptel.el`, section *gptel setup* in `emacs.org`):
 
 Text yanked into a gptel buffer is stripped of gptel's internal properties,
 so pasting part of a response doesn't confuse the request.
+
 
 ## Troubleshooting
 
