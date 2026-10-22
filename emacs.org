@@ -1024,6 +1024,58 @@ Mickey's workflow: ssh inside M-x shell + Tramp for files.  But the built-in
         #'my/ansi-osc-directory-tracker))
 #+END_SRC
 
+** TRAMP
+Remote files (C-x C-f /ssh:user@host:path, and the remote shells above).
+- Prot: prot-emacs-essentials.el (auto-save/trash off, remote shell bash;
+  he uses a 600s connection timeout, we use 10s).  Rest is ours.
+- After a disconnect: M-x tramp-cleanup-this-connection, then retry.
+- Dead host also logs "Could not retrieve `tramp-own-remote-path'" in
+  *Warnings*: harmless, it's the failed connect.
+
+~/.ssh/config (copy, not tangled; create it with mode 600).  General
+settings for every host, so new test machines need no entry.  Tested on
+a test host: second ssh 0.42s -> 0.04s; unreachable host fails in 10s.
+- ServerAlive*: notice a dead link (laptop sleep, network change) in ~90s
+  instead of hanging.
+- ConnectTimeout: default is the kernel TCP timeout (~2 min); TRAMP
+  retries, so one C-x C-f to a dead host froze Emacs ~8 min without it.
+- ControlMaster: typed ssh/scp reuse one connection per user@host:port.
+  TRAMP has its own (`tramp-use-connection-share', ~/.cache/emacs/tramp.*).
+- Stale master after reconnect: ssh -O exit user@host (or rm ~/.ssh/cm-*).
+#+begin_src conf :tangle no
+Host *
+    ServerAliveInterval 30
+    ServerAliveCountMax 3
+    ConnectTimeout 10
+    ControlMaster auto
+    ControlPath ~/.ssh/cm-%r@%h:%p
+    ControlPersist 10m
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+(with-eval-after-load 'tramp
+  ;; Ours: fail fast on an unreachable host (default 60s, Prot 600s);
+  ;; a laptop on flaky networks shouldn't freeze Emacs
+  (setq tramp-connection-timeout 10)
+  ;; Ours: TRAMP shows its error buffer 30s after a failed connect and
+  ;; retries ~3 times per command, so a dead host froze Emacs ~2 min
+  ;; even with ConnectTimeout 10.  Keep the message, shorten the wait.
+  (setq tramp-error-show-message-timeout 3)
+  ;; Prot: shell for TRAMP's own commands
+  (setq tramp-default-remote-shell "/bin/bash"))
+
+(with-eval-after-load 'tramp-sh
+  ;; Ours: use the remote login PATH (e.g. ~/.local/bin) for compile/grep
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
+
+;; Prot: no auto-save or trash round-trips over ssh.
+;; Ours: also no lock files / auto-save-visited on remote files.
+(setq remote-file-name-inhibit-auto-save t
+      remote-file-name-inhibit-auto-save-visited t
+      remote-file-name-inhibit-locks t
+      remote-file-name-inhibit-delete-by-moving-to-trash t)
+#+END_SRC
+
 ** Colors in M-x compile
 Shell colors already work (ansi-color-for-comint-mode is t by default).
 - Prot: prot-emacs-essentials.el, "Compilation interface (M-x compile)"
