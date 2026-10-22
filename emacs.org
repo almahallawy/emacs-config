@@ -875,6 +875,9 @@ if [ -n "$INSIDE_EMACS" ]; then
         export GIT_PAGER=cat
         export TERM=dumb-emacs-ansi
         export COLORTERM=1
+        # Ours: uutils ls (Ubuntu default) refuses color when TERM=dumb*,
+        # even with --color=always; GNU ls (gnuls) doesn't.
+        command -v gnuls >/dev/null && alias ls='gnuls --color=auto'
     fi
 fi
 #+end_src
