@@ -24,6 +24,12 @@ Clone these into ~/src before the first start; they are loaded from there:
 System packages:
 - pandoc (markdown-mode preview/export): sudo apt install pandoc
 
+Shell (not tangled, manual step):
+- Append the ~/.bashrc snippet from Shell > Directory tracking (OSC 7) to
+  ~/.bashrc.  Without it M-x shell has no prompt colours, no directory
+  tracking (default-directory and F1 buffer names don't follow cd),
+  no colour from git/ls/grep, and pagers (less) break.
+
 * Packages
 #+BEGIN_SRC emacs-lisp
 ;; Packages
