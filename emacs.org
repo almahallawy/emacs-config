@@ -29,6 +29,9 @@ Clone these into ~/src before the first start; they are loaded from there:
 
 System packages:
 - pandoc (markdown-mode preview/export): sudo apt install pandoc
+- pdf-tools build deps (epdfinfo is compiled on first load, see PDF):
+  sudo apt install libpoppler-glib-dev libpoppler-private-dev libpng-dev
+  zlib1g-dev autoconf automake gcc make pkg-config
 
 Shell (not tangled, manual step):
 - Append the ~/.bashrc snippet from Shell > Directory tracking (OSC 7) to
@@ -498,6 +501,30 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 ;; Clojure
 (use-package clojure-mode)
 (use-package cider)
+#+END_SRC
+
+* PDF
+pdf-tools replaces DocView for .pdf files.  The epdfinfo server is
+compiled on the first load (needs the build deps under Prerequisites);
+after a pdf-tools package upgrade run M-x pdf-tools-install to rebuild.
+Keys: o outline, C-s search, f follow link, B/N history, + / - / 0 zoom,
+W fit width, C-c C-r m midnight (dark) mode, C-c C-a h highlight.
+#+BEGIN_SRC emacs-lisp
+(use-package pdf-tools
+  :mode ("\\.pdf\\'" . pdf-view-mode)
+  :magic ("%PDF" . pdf-view-mode)
+  :config
+  (pdf-tools-install :no-query)
+  (setq-default pdf-view-display-size 'fit-width)
+  (setq pdf-view-use-scaling t             ; sharp on HiDPI screens
+        pdf-annot-activate-created-annotations t)
+  ;; display-line-numbers makes pdf-view-mode slow/flicker.
+  (add-hook 'pdf-view-mode-hook (lambda () (display-line-numbers-mode -1))))
+
+;; Reopen each PDF at the last viewed page.
+(use-package saveplace-pdf-view
+  :after pdf-tools
+  :config (save-place-mode 1))
 #+END_SRC
 
 * Jeremy's cscope: https://github.com/jeremy-compostella/cscope
