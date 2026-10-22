@@ -31,7 +31,7 @@ System packages:
 ;;(add-to-list 'package-archives
 ;;	     '("melpa-stable" . "https://stable.melpa.org/packages/") t)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-(add-to-list 'package-archives '("gnu" . "http://elpa.gnu.org/packages/"))
+(add-to-list 'package-archives '("gnu" . "https://elpa.gnu.org/packages/"))
 ;; (add-to-list 'package-archives '("marmalade" .
 ;; 				 "https://marmalade-repo.org/packages/"))
 (package-initialize)
@@ -89,23 +89,25 @@ System packages:
 * y or n
 #+BEGIN_SRC emacs-lisp
 ;; y or n is sufficient for yes or no questions
-(defalias 'yes-or-no-p 'y-or-n-p)
-;(fset 'yes-or-no-p 'y-or-n-p)
+(setq use-short-answers t)
 #+END_SRC
 
 * Look & feel
 ** Background/Foreground color
 #+BEGIN_SRC emacs-lisp
-;; set background to black, easy on the eyes
+;; Black background, white text, easy on the eyes.
+;; default-frame-alist so new frames (emacsclient) get it too;
+;; set-*-color applies it to the initial frame.
+(add-to-list 'default-frame-alist '(background-color . "black"))
+(add-to-list 'default-frame-alist '(foreground-color . "white"))
 (set-background-color "black")
-;; set text (i.e., foreground) to white
 (set-foreground-color "white")
 #+END_SRC
 
 ** Scrolling
 #+BEGIN_SRC emacs-lisp
 ;; Enable/Disable scroll bar
-(toggle-scroll-bar 1)
+(scroll-bar-mode 1)
 #+END_SRC
 ** Toolbars
 #+BEGIN_SRC emacs-lisp
@@ -357,12 +359,10 @@ The auto-save-list folder is created automatically below.
 * Neotree
 #+BEGIN_SRC emacs-lisp
 (use-package neotree)
-(require 'neotree)
 #+END_SRC
 * Rainbow Delimiters
 #+BEGIN_SRC emacs-lisp
   (use-package rainbow-delimiters)
-  (require 'rainbow-delimiters)
   (add-hook 'prog-mode-hook #'rainbow-delimiters-mode)
 
 ;; Bright colours per nesting depth (readable on black background).
@@ -381,13 +381,11 @@ The auto-save-list folder is created automatically below.
 * iedit
 #+BEGIN_SRC emacs-lisp
 (use-package iedit)
-(require 'iedit)
 #+END_SRC
 * Company (auto-completion)
 From: https://codeberg.org/jao/elibs/src/branch/main/completion.org
 #+BEGIN_SRC emacs-lisp
     (use-package company
-      :ensure t
       :custom ((company-backends '(company-capf
                                    company-bbdb
                                    company-files
@@ -416,8 +414,7 @@ Ours: fall back to `completion-at-point' when company is off
 
       (defun jao-company-use-in-tab ()
         (global-set-key [remap completion-at-point] #'jao-complete-at-point)
-        (global-set-key [remap completion-symbol] #'jao-complete-at-point)
-        (global-set-key (kbd "C-TAB") #'jao-complete-at-point))
+        (global-set-key [remap completion-symbol] #'jao-complete-at-point))
 
       (jao-company-use-in-tab)
       (define-key company-active-map (kbd "C-n") #'company-select-next)
@@ -466,14 +463,12 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 #+BEGIN_SRC emacs-lisp :tangle no
 ;; python
 (use-package elpy
-  :ensure t
   :init
   (elpy-enable))
 
 ;;(setq elpy-rpc-python-command "python3")
 
-(use-package jedi
-  :ensure t)
+(use-package jedi)
 
 (add-hook 'python-mode-hook 'jedi:setup)
 (setq jedi:complete-on-dot t)                 ; optional
@@ -482,7 +477,6 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 
 * Git
 #+BEGIN_SRC emacs-lisp
-;; set to nil to have no limit
 (use-package magit)
 #+END_SRC
 
@@ -491,16 +485,17 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 #+BEGIN_SRC emacs-lisp 
 ;; Clojure
 (use-package clojure-mode)
-(use-package cider
-  :ensure t)
+(use-package cider)
 #+END_SRC
 
 * Jeremy's cscope: https://github.com/jeremy-compostella/cscope
 #+BEGIN_SRC emacs-lisp
     (add-to-list 'load-path (expand-file-name "~/src/cscope"))
     (require 'cscope)
-    (global-set-key (kbd "M-.") #'cscope-find-this-function-definition)
-    (global-set-key (kbd "M-,") #'cscope-find-this-C-symbol)
+    ;; Only in C buffers; elsewhere M-. / M-, stay xref (elisp etc.).
+    (with-eval-after-load 'cc-mode
+      (define-key c-mode-map (kbd "M-.") #'cscope-find-this-function-definition)
+      (define-key c-mode-map (kbd "M-,") #'cscope-find-this-C-symbol))
     (global-set-key (kbd "C-c s") #'cscope-entry)
     (define-key cscope-mode-map (kbd "<return>") #'cscope-display-match)
 
@@ -515,7 +510,6 @@ To solve this, set the variable eval-expression-print-level here or in .emacs fi
 Requires pandoc for preview/export (see Prerequisites).
 #+BEGIN_SRC emacs-lisp
 (use-package markdown-mode
-  :ensure t
   :mode (("README\\.md\\'" . gfm-mode)    ; GitHub-flavored
          ("\\.md\\'" . markdown-mode))
   :init (setq markdown-command "pandoc")) ; for preview/export
