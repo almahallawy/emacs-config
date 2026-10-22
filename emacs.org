@@ -909,6 +909,10 @@ fi
   (setq comint-prompt-read-only t)
   ;; Prot: typing while scrolled up jumps back to the prompt
   (setq-default comint-scroll-to-bottom-on-input t)
+  ;; Prot (9999): cap scrollback; oldest lines are dropped.  Ours: 10000
+  ;; to match the terminal (Ptyxis scrollback-lines).  Default is unlimited.
+  (setq comint-buffer-maximum-size 10000)
+  (add-hook 'comint-output-filter-functions #'comint-truncate-buffer)
   ;; Ours: keep the view after C-l (terminal-style clear); don't re-scroll
   ;; to fill the window with old output when new output arrives.
   (setq comint-scroll-show-maximum-output nil))
