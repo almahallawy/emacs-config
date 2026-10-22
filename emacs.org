@@ -974,7 +974,7 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
 - Prot: prot-shell.el (`prot-shell', bound to F1): new shell named after
   `default-directory', reused if one exists; renamed after `cd'.
 - Ours: rename on any directory change reported by OSC 7 (pushd, scripts,
-  aliases), not only typed `cd ...'.
+  aliases), not only typed `cd ...'; applies to every shell-mode buffer.
 - C-c s is taken by cscope, so F1 only (help stays on C-h).
 
 #+BEGIN_SRC emacs-lisp
@@ -987,13 +987,19 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
     (unless (string-prefix-p name (buffer-name))
       (rename-buffer name t))))
 
+(defun my/shell--track-name ()
+  ;; APPEND so it runs after `comint-osc-process-output' updates the dir.
+  (add-hook 'comint-output-filter-functions #'my/shell--rename-on-cd t t))
+
+;; Ours: every shell (M-x shell too) is named after its cwd, like a
+;; terminal title.  Note: M-x shell then starts a new shell each time.
+(add-hook 'shell-mode-hook #'my/shell--track-name)
+
 (defun my/shell ()
   "Shell for `default-directory', named after it; reuse if it exists.
 Based on Prot's `prot-shell'."
   (interactive)
-  (with-current-buffer (shell (my/shell--name default-directory))
-    ;; APPEND so it runs after `comint-osc-process-output' updates the dir.
-    (add-hook 'comint-output-filter-functions #'my/shell--rename-on-cd t t)))
+  (shell (my/shell--name default-directory)))
 
 (global-set-key (kbd "<f1>") #'my/shell)
 #+END_SRC
