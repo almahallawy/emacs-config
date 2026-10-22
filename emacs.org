@@ -907,7 +907,7 @@ Unix Shell" section: only when TERM=dumb, so vterm/term keep using less.
 TERM=dumb-emacs-ansi (ncurses terminfo: 8 colors, no cursor movement) lets
 git/ls/grep emit color; COLORTERM=1 is Prot's conservative color hint):
 #+begin_src sh :tangle no
-if [ -n "$INSIDE_EMACS" ]; then
+if [ -n "$INSIDE_EMACS" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
     __emacs_osc7() { printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
     PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
     if [ "$TERM" = "dumb" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
@@ -950,6 +950,49 @@ fi
   (setq shell-highlight-undef-enable t)
   ;; Mickey: turn off regexp-based dirtrack, OSC 7 replaces it
   (add-hook 'shell-mode-hook (lambda () (shell-dirtrack-mode -1))))
+#+END_SRC
+
+** Remote shells: OSC 7 -> TRAMP path
+Mickey's workflow: ssh inside M-x shell + Tramp for files.  But the built-in
+`ansi-osc-directory-tracker' ignores OSC 7 from other hosts, so after
+`ssh host' the buffer's `default-directory' stays local.
+- Ours: map file://HOST/PATH to a TRAMP path:
+  - HOST is this machine -> local PATH (as before)
+  - shell started via TRAMP -> keep the prefix it started on
+    (method/user/hops), swap in PATH
+  - local shell where you typed `ssh HOST' (even ssh A then ssh B)
+    -> /ssh:HOST:PATH.  HOST is the remote's $HOSTNAME, so it must be
+    reachable by that name (or have a ~/.ssh/config Host entry).
+- Sets `default-directory' directly; no TRAMP connection is opened from the
+  process filter (would block, maybe prompt for a password).  The connection
+  is made on first use (C-x C-f, dired, TAB).
+- Needs the ~/.bashrc block on the remote too.  Plain ssh does not pass
+  INSIDE_EMACS, only TERM, so the block also checks TERM=dumb-emacs-ansi.
+
+#+BEGIN_SRC emacs-lisp
+(defvar-local my/shell--origin nil
+  "TRAMP prefix the shell process was started on, or nil if local.")
+
+(defun my/shell--record-origin ()
+  (setq my/shell--origin (file-remote-p default-directory)))
+(add-hook 'shell-mode-hook #'my/shell--record-origin)
+
+(defun my/ansi-osc-directory-tracker (_ text)
+  "Like `ansi-osc-directory-tracker', but follow remote hosts via TRAMP."
+  (let* ((url (url-generic-parse-url text))
+         (host (url-host url))
+         (path (url-unhex-string (url-filename url))))
+    (when (and (equal (url-type url) "file") (file-name-absolute-p path))
+      (let ((dir (cond ((or (null host) (equal host "")
+                            (string= host (downcase (system-name))))
+                        path)
+                       (my/shell--origin (concat my/shell--origin path))
+                       (t (format "/ssh:%s:%s" host path)))))
+        (setq default-directory (file-name-as-directory dir))))))
+
+(with-eval-after-load 'ansi-osc
+  (setf (alist-get "7" ansi-osc-handlers nil nil #'equal)
+        #'my/ansi-osc-directory-tracker))
 #+END_SRC
 
 ** Colors in M-x compile
