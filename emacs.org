@@ -970,6 +970,34 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
   (define-key shell-mode-map (kbd "<down>") #'my/shell-down))
 #+END_SRC
 
+** F1: one shell per directory
+- Prot: prot-shell.el (`prot-shell', bound to F1): new shell named after
+  `default-directory', reused if one exists; renamed after `cd'.
+- Ours: rename on any directory change reported by OSC 7 (pushd, scripts,
+  aliases), not only typed `cd ...'.
+- C-c s is taken by cscope, so F1 only (help stays on C-h).
+
+#+BEGIN_SRC emacs-lisp
+(defun my/shell--name (dir)
+  (format "*shell %s*" (abbreviate-file-name (directory-file-name dir))))
+
+(defun my/shell--rename-on-cd (_output)
+  "Rename the shell buffer when `default-directory' changes."
+  (let ((name (my/shell--name default-directory)))
+    (unless (string-prefix-p name (buffer-name))
+      (rename-buffer name t))))
+
+(defun my/shell ()
+  "Shell for `default-directory', named after it; reuse if it exists.
+Based on Prot's `prot-shell'."
+  (interactive)
+  (with-current-buffer (shell (my/shell--name default-directory))
+    ;; APPEND so it runs after `comint-osc-process-output' updates the dir.
+    (add-hook 'comint-output-filter-functions #'my/shell--rename-on-cd t t)))
+
+(global-set-key (kbd "<f1>") #'my/shell)
+#+END_SRC
+
 * Provide
 #+BEGIN_SRC emacs-lisp
   ;; Make this config file available.
