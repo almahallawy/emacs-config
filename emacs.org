@@ -907,11 +907,15 @@ fi
   (setq comint-input-ignoredups t)
   ;; Prot: prompt can't be deleted by accident (C-w, DEL at prompt start)
   (setq comint-prompt-read-only t)
+  ;; Prot: typing while scrolled up jumps back to the prompt
+  (setq-default comint-scroll-to-bottom-on-input t)
   ;; Ours: keep the view after C-l (terminal-style clear); don't re-scroll
   ;; to fill the window with old output when new output arrives.
   (setq comint-scroll-show-maximum-output nil))
 
 (with-eval-after-load 'shell
+  ;; Prot: kill the buffer when the shell exits (typing `exit')
+  (setq shell-kill-buffer-on-exit t)
   ;; Mickey: turn off regexp-based dirtrack, OSC 7 replaces it
   (add-hook 'shell-mode-hook (lambda () (shell-dirtrack-mode -1))))
 #+END_SRC
