@@ -8,9 +8,14 @@
  M-x org-babel-tangle (C-c C-v t)
 
 This will generate: kia-config.el
-Add the following to your .emacs file
-Note that src/emacs-config is the location of the emacs config file.
+Add the following to your ~/.emacs file (keep Custom's block below it):
 
+(load "~/src/emacs-config/.emacs")
+
+The repo's .emacs (src/emacs-config is the location of the emacs config) contains:
+
+;; Load a newer .el over a stale .elc (e.g. my-gptel after tangling).
+(setq load-prefer-newer t)
 (defvar kia-emacs-directory "~/src/emacs-config")
 (add-to-list 'load-path kia-emacs-directory)
 (require 'kia-config)
@@ -573,11 +578,22 @@ Package-Requires are not installed automatically:
 
 ** my-gptel.el (personal gptel extensions)
 The following sections tangle to a separate file, my-gptel.el, which is
-loaded here.  It is generated, like kia-config.el.  After tangling,
-recompile it (the .elc is loaded if present):
-  emacs --batch -L ~/src/gptel -f batch-byte-compile ~/src/emacs-config/my-gptel.el
+loaded here.  It is generated, like kia-config.el, and byte-compiled
+automatically after every tangle (C-c C-v t), see the hook below.
+.emacs sets load-prefer-newer, so a stale my-gptel.elc is never loaded
+over a newer my-gptel.el.
+Manual compile (e.g. tangling from a bare emacs --batch):
+  emacs --batch -L ~/src/gptel -L ~/src/gptel-agent -f batch-byte-compile ~/src/emacs-config/my-gptel.el
 #+BEGIN_SRC emacs-lisp
 (require 'my-gptel)
+
+(defun my-gptel-compile-after-tangle ()
+  "Byte-compile my-gptel.el right after it is tangled.
+Runs in the tangled file's buffer (`org-babel-post-tangle-hook')."
+  (when (and buffer-file-name
+             (string= (file-name-nondirectory buffer-file-name) "my-gptel.el"))
+    (byte-compile-file buffer-file-name)))
+(add-hook 'org-babel-post-tangle-hook #'my-gptel-compile-after-tangle)
 #+END_SRC
 
 #+BEGIN_SRC emacs-lisp :tangle my-gptel.el
