@@ -589,6 +589,19 @@ if requests fail with HTTP 403."
   (message "Copilot session token cleared; next request will fetch a new one."))
 #+END_SRC
 
+** Strip gptel properties on yank
+Text copied from a response carries the `gptel' text property (response /
+tool-call markers).  Pasted into a prompt, gptel would send it as an
+assistant turn or a bogus tool call, breaking the request.  Exclude these
+properties when yanking in gptel-mode buffers.
+#+BEGIN_SRC emacs-lisp
+(defun kia/gptel-strip-props-on-yank ()
+  "Don't carry gptel's role-tracking properties into yanked text."
+  (setq-local yank-excluded-properties
+              (append '(gptel gptel-history) yank-excluded-properties)))
+(add-hook 'gptel-mode-hook #'kia/gptel-strip-props-on-yank)
+#+END_SRC
+
 ** my-gptel.el (personal gptel extensions)
 The following sections tangle to a separate file, my-gptel.el, which is
 loaded here.  It is generated, like kia-config.el.
