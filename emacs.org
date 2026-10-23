@@ -771,6 +771,13 @@ A zero or negative value disables automatic refresh."
     ('IDLE "idle")
     (_ (symbol-name state))))
 
+(defun my-gptel-sessions--state-face (state running)
+  "Return the face for request STATE; RUNNING is non-nil if in flight."
+  (pcase state
+    ('ERRS 'error)
+    ('ABRT 'shadow)
+    (_ (if running 'success 'shadow))))
+
 (defun my-gptel-sessions--backend-name (backend)
   "Return the name of BACKEND, or \"\" if none."
   (if (gptel-backend-p backend) (gptel-backend-name backend) ""))
@@ -786,7 +793,8 @@ A zero or negative value disables automatic refresh."
       (list buf
             (vector (buffer-name)
                     (propertize (symbol-name state)
-                                'face (if running 'success 'shadow))
+                                'face (my-gptel-sessions--state-face
+                                       state running))
                     (my-gptel-sessions--status state info)
                     (my-gptel-sessions--backend-name
                      (if running (plist-get info :backend) gptel-backend))
@@ -806,7 +814,8 @@ A zero or negative value disables automatic refresh."
           (vector (format "  ↳ %s: %s"
                           (or (overlay-get ov 'my-gptel-type) "agent")
                           (or (overlay-get ov 'my-gptel-desc) ""))
-                  (propertize (symbol-name state) 'face 'success)
+                  (propertize (symbol-name state)
+                              'face (my-gptel-sessions--state-face state t))
                   (format "%s (%d tool%s)"
                           (my-gptel-sessions--status state info)
                           count (if (= count 1) "" "s"))
