@@ -48,9 +48,9 @@ every tangle.
    emacs --batch -L ~/src/gptel -L ~/src/gptel-agent -f batch-byte-compile my-gptel.el
    ```
 5. **Start Emacs.** Packages from MELPA/GNU ELPA install on first start.
-6. **Shell (optional):** append the `~/.bashrc` snippet from `emacs.org`,
-   section *Shell > Directory tracking (OSC 7)*. Needed for prompt colours and
-   directory tracking in `M-x shell`.
+6. **Shell (optional):** `ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash`
+   (see `emacs.org`, *Shell > ~/.emacs_bash*). Needed for prompt colours and
+   directory tracking in `M-x shell` and `M-x ssh`; remote hosts need nothing.
 7. **Secrets** go in `~/.authinfo.gpg` (never in this repo), e.g. tokens
 
 ## Day-to-day: changing the config

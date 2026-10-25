@@ -1,0 +1,8 @@
+ set +o history
+__emacs_osc7() { history -a; printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
+HISTFILE=~/.bash_history
+export PAGER=cat GIT_PAGER=cat TERM=dumb-emacs-ansi COLORTERM=1
+command -v gnuls >/dev/null && alias ls='gnuls --color=auto'
+tmux() { TERM=dumb command tmux "$@"; }
+PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+case ";$PROMPT_COMMAND;" in *";__emacs_osc7;"*) ;; *) PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;; esac; set -o history; echo

@@ -33,11 +33,12 @@ System packages:
   sudo apt install libpoppler-glib-dev libpoppler-private-dev libpng-dev
   zlib1g-dev autoconf automake gcc make pkg-config
 
-Shell (not tangled, manual step):
-- Append the ~/.bashrc snippet from Shell > Directory tracking (OSC 7) to
-  ~/.bashrc.  Without it M-x shell has no prompt colours, no directory
-  tracking (default-directory and F1 buffer names don't follow cd),
-  no colour from git/ls/grep, and pagers (less) break.
+Shell (manual step):
+- ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash
+  (see Shell > ~/.emacs_bash).  Without it M-x shell and M-x ssh have no
+  prompt colours, no directory tracking (default-directory and F1 buffer
+  names don't follow cd), no colour from git/ls/grep, and pagers (less)
+  break.  Nothing is needed in ~/.bashrc, locally or on remote hosts.
 
 * Packages
 #+BEGIN_SRC emacs-lisp
@@ -937,47 +938,93 @@ Use M-x shell (comint).  Both Mickey and Prot use it day to day.
 - Prot:   https://github.com/protesilaos/dotfiles/blob/master/emacs/.emacs.d/prot-emacs-modules/prot-emacs-essentials.el
   (sections "Generic interface for shells or REPLs (comint)"
    and "Standard Unix Shell (M-x shell)")
+- Jeremy: ~/src/j2m-emacs-config (emacs_bash) and j2m-tools.el (`ssh'):
+  shell setup in ~/.emacs_bash, remote shells started via TRAMP.  We do
+  the same, so remote hosts need no setup (unlike Mickey's typed ssh).
 
 ** Directory tracking (OSC 7)
 The shell reports its cwd after every prompt, so `default-directory'
-(C-x C-f, dired, compile) follows `cd'.  Needs the ~/.bashrc snippet below.
+(C-x C-f, dired, compile) follows `cd'.  Needs ~/.emacs_bash (below).
 - Mickey: running-shells-in-emacs-overview, "Directory Tracking" section
   ("I strongly recommend you go to the trouble of getting it to work";
    disable shell-dirtrack-mode so it doesn't interfere)
 - Prot: prot-emacs-essentials.el, comint section
 
-~/.bashrc (OSC 7 adapted from Mickey's `myprompt'; the INSIDE_EMACS guard is ours.
-Pager part from Prot's .bashrc, quoted in prot-emacs-essentials.el "Standard
-Unix Shell" section: only when TERM=dumb, so vterm/term keep using less.
-TERM=dumb-emacs-ansi (ncurses terminfo: 8 colors, no cursor movement) lets
-git/ls/grep emit color; COLORTERM=1 is Prot's conservative color hint):
+*** ~/.emacs_bash
+Jeremy's approach (~/src/j2m-emacs-config: ~/.emacs_bash is a symlink into
+his config repo).  M-x shell sends ~/.emacs_bash to every new bash as its
+first input (shell.el, `shell': startfile "~/.emacs_" + shell name), also
+for shells started on a remote host via TRAMP.  So this setup lives only on
+the laptop: ~/.bashrc (local or remote) needs nothing for Emacs, and
+terminals (Ptyxis) are unaffected.
+
+Setup once per laptop (tangled file is committed, so a fresh clone works):
 #+begin_src sh :tangle no
-if [ -n "$INSIDE_EMACS" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
-    # Ours: under ssh, report user@IP we connected to (works without DNS
-    # or ~/.ssh/config); hostname after # is only for the buffer name.
-    __emacs_osc7() {
-        local host=$HOSTNAME
-        [ -n "$SSH_CONNECTION" ] && { local c=($SSH_CONNECTION); host="$USER@${c[2]}"; }
-        printf "\e]7;file://%s%s#%s\e\\" "$host" "$PWD" "$HOSTNAME"
-    }
-    PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
-    if [ "$TERM" = "dumb" ] || [ "$TERM" = "dumb-emacs-ansi" ]; then
-        export PAGER=cat
-        export GIT_PAGER=cat
-        export TERM=dumb-emacs-ansi
-        export COLORTERM=1
-        # Ours: uutils ls (Ubuntu default) refuses color when TERM=dumb*,
-        # even with --color=always; GNU ls (gnuls) doesn't.
-        command -v gnuls >/dev/null && alias ls='gnuls --color=auto'
-        # Ours: tmux refuses dumb-emacs-ansi (terminfo has hc, "hardcopy");
-        # plain dumb works for ls/new -d/kill-session.  Attach still needs
-        # a real terminal (vterm/Ptyxis).
-        tmux() { TERM=dumb command tmux "$@"; }
-        # Ours: Debian PS1 colours only for xterm/256color; force it here.
-        PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
-    fi
-fi
+ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash
 #+end_src
+
+The lines are typed into bash, not sourced, so:
+- No comments in the file: each line would print an extra prompt.
+  Notes are here instead.
+- Each line still prints a prompt while it's read; the Elisp below deletes
+  them once the last line has run (it sets PROMPT_COMMAND, so the first
+  OSC 7 marks the end; its `echo' puts the real prompt on a fresh line).
+- `set +o history' / `set -o history': keep these lines out of bash history
+  (first line starts with a space for HISTCONTROL=ignorespace; `-i' keeps
+  that space when tangling).
+- Runs after ~/.bashrc, so it overrides its PS1/PROMPT_COMMAND.
+- PROMPT_COMMAND is only extended once (safe if run twice).
+
+What each line does:
+1. OSC 7 function (Mickey's `myprompt'): report host and cwd.
+2. Pager off (Prot's .bashrc, quoted in prot-emacs-essentials.el "Standard
+   Unix Shell"); TERM=dumb-emacs-ansi (ncurses terminfo: 8 colors, no cursor
+   movement) lets git/ls/grep emit colour; COLORTERM=1 is Prot's
+   conservative colour hint.
+3. Ours: uutils ls (Ubuntu default) refuses colour when TERM=dumb*, even
+   with --color=always; GNU ls (gnuls) doesn't.
+4. Ours: tmux refuses dumb-emacs-ansi (terminfo has hc, "hardcopy"); plain
+   dumb works for ls/new -d/kill-session.  Attach needs a real terminal.
+5. Ours: Debian's PS1 is coloured only for xterm/256color; force it.
+6. Ours: HISTFILE: TRAMP starts remote shells with HISTFILE=~/.tramp_history
+   (`tramp-histfile-override', to keep its own commands out of history), so
+   commands typed in M-x ssh were never saved.  No-op locally.
+7. Run the OSC 7 function before every prompt (Mickey).  Ours: `history -a'
+   appends each command to HISTFILE as it runs, so it's saved even if the
+   buffer is killed (bash didn't write it then) or the connection drops,
+   and new shells see commands from open ones.  History back on.
+#+begin_src sh -i :tangle emacs_bash
+ set +o history
+__emacs_osc7() { history -a; printf "\e]7;file://%s%s\e\\" "$HOSTNAME" "$PWD"; }
+HISTFILE=~/.bash_history
+export PAGER=cat GIT_PAGER=cat TERM=dumb-emacs-ansi COLORTERM=1
+command -v gnuls >/dev/null && alias ls='gnuls --color=auto'
+tmux() { TERM=dumb command tmux "$@"; }
+PS1='${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ '
+case ";$PROMPT_COMMAND;" in *";__emacs_osc7;"*) ;; *) PROMPT_COMMAND="__emacs_osc7${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;; esac; set -o history; echo
+#+end_src
+
+#+BEGIN_SRC emacs-lisp
+(defun my-shell--drop-startup-prompts (output)
+  "Delete the prompts bash printed while ~/.emacs_bash was typed in.
+The first OSC 7 comes after its last line; everything before the current
+line is startup noise."
+  (when (string-search "\e]7;" output)
+    (remove-hook 'comint-output-filter-functions
+                 #'my-shell--drop-startup-prompts t)
+    (let ((inhibit-read-only t)
+          (end (save-excursion
+                 (goto-char (process-mark (get-buffer-process (current-buffer))))
+                 (line-beginning-position))))
+      (delete-region (point-min) end))))
+
+(defun my-shell--startup-cleanup ()
+  ;; "~" is the local home even in TRAMP shells, like shell.el's startfile.
+  (when (file-exists-p "~/.emacs_bash")
+    (add-hook 'comint-output-filter-functions
+              #'my-shell--drop-startup-prompts t t)))
+(add-hook 'shell-mode-hook #'my-shell--startup-cleanup)
+#+END_SRC
 
 #+BEGIN_SRC emacs-lisp
 (with-eval-after-load 'comint
@@ -1007,62 +1054,77 @@ fi
   (add-hook 'shell-mode-hook (lambda () (shell-dirtrack-mode -1))))
 #+END_SRC
 
-** Remote shells: OSC 7 -> TRAMP path
-Mickey's workflow: ssh inside M-x shell + Tramp for files.  But the built-in
-`ansi-osc-directory-tracker' ignores OSC 7 from other hosts, so after
-`ssh host' the buffer's `default-directory' stays local.
-- Ours: map file://HOST/PATH to a TRAMP path:
-  - HOST is this machine -> local PATH (as before)
-  - shell started via TRAMP -> keep the prefix it started on
-    (method/user/hops), swap in PATH
-  - local shell where you typed `ssh user@IP' (even ssh A then ssh B)
-    -> /ssh:user@IP:PATH.  The remote bashrc sends user@IP from
-    $SSH_CONNECTION, so no DNS name or ~/.ssh/config entry is needed and
-    known_hosts already has the IP.
-  - Buffer name shows the hostname instead: *shell user@host:PATH*
-    (hostname sent after # in the OSC 7 URL).
-- Sets `default-directory' directly; no TRAMP connection is opened from the
-  process filter (would block, maybe prompt for a password).  The connection
-  is made on first use (C-x C-f, dired, TAB).
-- Needs the ~/.bashrc block on the remote too.  Plain ssh does not pass
-  INSIDE_EMACS, only TERM, so the block also checks TERM=dumb-emacs-ansi.
+** Remote shells: M-x ssh (TRAMP)
+Jeremy's `ssh' (j2m-tools.el, github.com/jeremy-compostella/j2m-tools):
+start the shell through TRAMP, so bash runs on the remote but still gets
+~/.emacs_bash from the laptop.  Remote machines need no setup.  The shell,
+C-x C-f, dired and TAB share one TRAMP connection.
+- M-x ssh (alias for `my-ssh', unless something else defines `ssh'):
+  prompts for user@host.  F1 in a remote dired/file buffer works too.
+- `explicit-shell-file-name': without it a TRAMP shell runs /bin/sh (the
+  connection-local default), and shell.el then looks for ~/.emacs_sh
+  instead of ~/.emacs_bash.  Jeremy sets it too.
+- `shell-history-file-name': shell-mode asks the remote for $HISTFILE with
+  a non-interactive shell, where bash leaves it unset, so remote shells
+  started with an empty history.  This gives Up/Down the remote
+  ~/.bash_history (Jeremy: same idea); locally it's the same file as
+  before.  Writing back is done by bash (HISTFILE + `history -a' in
+  ~/.emacs_bash).
+- `comint-input-ring-size': Up/Down holds 500 by default; shell-mode copies
+  $HISTSIZE only if it's in Emacs's environment, and ~/.bashrc sets it
+  inside bash only.  Ours: 1000, same as Ubuntu's HISTSIZE.
+- OSC 7: the built-in `ansi-osc-directory-tracker' ignores reports from
+  other hosts.  Ours: in a shell started via TRAMP, keep its prefix
+  (method/user/hops) and swap in the reported path.  Sets
+  `default-directory' only; the TRAMP connection already exists.
+- Buffer name: *shell user@host:DIR* from the TRAMP path (host as typed),
+  so F1 in a remote buffer finds the existing shell.
+- Not covered: `ssh host' typed inside a shell.  The remote doesn't get
+  ~/.emacs_bash, so no tracking or colours there.  Use M-x ssh.
+- `my-ssh-history' survives restarts only if savehist-mode is on (it's off).
 
 #+BEGIN_SRC emacs-lisp
-(defvar-local my/shell--origin nil
+(setq explicit-shell-file-name "/bin/bash"
+      shell-history-file-name "~/.bash_history")
+(setq-default comint-input-ring-size 1000)
+
+(defvar-local my-shell--origin nil
   "TRAMP prefix the shell process was started on, or nil if local.")
 
-(defun my/shell--record-origin ()
-  (setq my/shell--origin (file-remote-p default-directory)))
-(add-hook 'shell-mode-hook #'my/shell--record-origin)
+(defun my-shell--record-origin ()
+  (setq my-shell--origin (file-remote-p default-directory)))
+(add-hook 'shell-mode-hook #'my-shell--record-origin)
 
-(defvar-local my/shell--label nil
-  "\"user@hostname\" of the remote the shell is on, for the buffer name.")
-
-(defun my/ansi-osc-directory-tracker (_ text)
-  "Like `ansi-osc-directory-tracker', but follow remote hosts via TRAMP."
+(defun my-ansi-osc-directory-tracker (_ text)
+  "Like `ansi-osc-directory-tracker', but follow shells started via TRAMP."
   (let* ((url (url-generic-parse-url text))
-         (user (url-user url))
          (host (url-host url))
          (path (url-unhex-string (url-filename url))))
     (when (and (equal (url-type url) "file") (file-name-absolute-p path))
-      (let* ((localp (or (null host) (equal host "")
-                         (string= host (downcase (system-name)))))
-             (dir (cond (localp path)
-                        (my/shell--origin (concat my/shell--origin path))
-                        (t (format "/ssh:%s%s:%s"
-                                   (if user (concat user "@") "") host path)))))
-        (setq my/shell--label
-              (and (not localp)
-                   (concat (if user (concat user "@") "")
-                           (or (url-target url) host))))
-        (setq default-directory (file-name-as-directory dir))
-        ;; Ours: shell.el sets this to t for shells started locally, which
-        ;; disables TRAMP during completion; follow the current dir instead.
-        (setq-local pcomplete-remote-file-ignore (not (file-remote-p dir)))))))
+      (cond
+       (my-shell--origin
+        (setq default-directory
+              (file-name-as-directory (concat my-shell--origin path))))
+       ((or (member host '(nil "")) (string= host (downcase (system-name))))
+        (setq default-directory (file-name-as-directory path)))))))
 
 (with-eval-after-load 'ansi-osc
   (setf (alist-get "7" ansi-osc-handlers nil nil #'equal)
-        #'my/ansi-osc-directory-tracker))
+        #'my-ansi-osc-directory-tracker))
+
+(defvar my-ssh-history nil "History of `my-ssh' targets.")
+
+(defun my-ssh (target)
+  "Shell on TARGET (user@host), started via TRAMP.
+Based on Jeremy's `ssh' (j2m-tools.el)."
+  (interactive (list (read-string "ssh user@host: " nil 'my-ssh-history)))
+  ;; Expanding the remote ~ also opens the connection (password, host key)
+  ;; before any buffer is created.
+  (let ((default-directory (expand-file-name (concat "/ssh:" target ":~/"))))
+    (my-shell)))
+
+(unless (fboundp 'ssh)
+  (defalias 'ssh #'my-ssh))
 #+END_SRC
 
 ** TRAMP
@@ -1140,7 +1202,7 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
   (e.g. git) then Up only cycles commands starting with it (like bash).
 
 #+BEGIN_SRC emacs-lisp
-(defun my/shell-up (arg)
+(defun my-shell-up (arg)
   "History at prompt, else move up.  Based on Prot's `prot-shell-up-dwim'."
   (interactive "^p")
   (if (comint-after-pmark-p)
@@ -1150,7 +1212,7 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
         (comint-previous-matching-input-from-input arg))
     (forward-line (- arg))))
 
-(defun my/shell-down (arg)
+(defun my-shell-down (arg)
   "History at prompt, else move down.  Based on Prot's `prot-shell-down-dwim'."
   (interactive "^p")
   (if (comint-after-pmark-p)
@@ -1160,8 +1222,8 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
     (forward-line arg)))
 
 (with-eval-after-load 'shell
-  (define-key shell-mode-map (kbd "<up>")   #'my/shell-up)
-  (define-key shell-mode-map (kbd "<down>") #'my/shell-down)
+  (define-key shell-mode-map (kbd "<up>")   #'my-shell-up)
+  (define-key shell-mode-map (kbd "<down>") #'my-shell-down)
   ;; Prot: easier key for clearing the buffer (default C-c M-o)
   (define-key shell-mode-map (kbd "C-c C-k") #'comint-clear-buffer))
 #+END_SRC
@@ -1174,34 +1236,37 @@ Shell colors already work (ansi-color-for-comint-mode is t by default).
 - C-c s is taken by cscope, so F1 only (help stays on C-h).
 
 #+BEGIN_SRC emacs-lisp
-(defun my/shell--name (dir)
+(defun my-shell--name (dir)
   (let ((d (abbreviate-file-name (directory-file-name dir))))
-    ;; Ours: remote via ssh-in-shell: show user@hostname, not the TRAMP path
-    (if (and (bound-and-true-p my/shell--label) (file-remote-p dir))
-        (format "*shell %s:%s*" my/shell--label (file-remote-p d 'localname))
+    ;; Ours: remote: *shell user@host:DIR* instead of the full TRAMP path
+    (if (file-remote-p d)
+        (let ((user (file-remote-p d 'user)))
+          (format "*shell %s%s:%s*" (if user (concat user "@") "")
+                  (file-remote-p d 'host) (file-remote-p d 'localname)))
       (format "*shell %s*" d))))
 
-(defun my/shell--rename-on-cd (_output)
+(defun my-shell--rename-on-cd (_output)
   "Rename the shell buffer when `default-directory' changes."
-  (let ((name (my/shell--name default-directory)))
+  (let ((name (my-shell--name default-directory)))
     (unless (string-prefix-p name (buffer-name))
       (rename-buffer name t))))
 
-(defun my/shell--track-name ()
+(defun my-shell--track-name ()
   ;; APPEND so it runs after `comint-osc-process-output' updates the dir.
-  (add-hook 'comint-output-filter-functions #'my/shell--rename-on-cd t t))
+  (add-hook 'comint-output-filter-functions #'my-shell--rename-on-cd t t))
 
 ;; Ours: every shell (M-x shell too) is named after its cwd, like a
 ;; terminal title.  Note: M-x shell then starts a new shell each time.
-(add-hook 'shell-mode-hook #'my/shell--track-name)
+(add-hook 'shell-mode-hook #'my-shell--track-name)
 
-(defun my/shell ()
+(defun my-shell ()
   "Shell for `default-directory', named after it; reuse if it exists.
-Based on Prot's `prot-shell'."
+Based on Prot's `prot-shell'.  In a remote directory the shell runs there
+via TRAMP (see `my-ssh')."
   (interactive)
-  (shell (my/shell--name default-directory)))
+  (shell (my-shell--name default-directory)))
 
-(global-set-key (kbd "<f1>") #'my/shell)
+(global-set-key (kbd "<f1>") #'my-shell)
 #+END_SRC
 
 * Provide
