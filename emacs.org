@@ -591,8 +591,14 @@ Package-Requires are not installed automatically:
 ;; Register gptel-agent preset (reads agents/gptel-agent.md via gptel-make-preset).
 (gptel-agent-update)
 
+;; Always read/write .gptel files as UTF-8.  Without this, a NUL byte in
+;; saved tool output makes Emacs detect the file as binary (no-conversion),
+;; which shifts GPTEL_BOUNDS positions and corrupts non-ASCII text on save.
+(add-to-list 'auto-coding-alist '("\\.gptel\\'" . utf-8-unix))
+
 (add-to-list 'auto-mode-alist
              '("\\.gptel\\'" . (lambda ()
+                                 (setq buffer-file-coding-system 'utf-8-unix) ; new files too
                                  (org-mode)
                                  (gptel-mode)
                                  ;; gptel-mode->gptel-org--restore-state sets
