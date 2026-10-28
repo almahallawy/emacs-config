@@ -732,6 +732,10 @@ requests, refreshed every `my-gptel-sessions-refresh-interval' seconds
 while visible.  Running gptel-agent sub-agents are shown as extra rows
 under their parent buffer.  Keys: RET visit, k abort, u toggle unleash,
 g refresh.
+The window is fitted to the list (up to `my-gptel-sessions-max-height')
+when it opens, on g, and whenever the number of rows changes; a manual
+resize is kept until then.  Set `my-gptel-sessions-fit-window' to nil to
+turn this off.
 #+BEGIN_SRC emacs-lisp :tangle my-gptel.el
 ;; gptel sessions list
 (defgroup my-gptel-sessions nil
@@ -748,8 +752,24 @@ g refresh.
 A zero or negative value disables automatic refresh."
   :type 'number)
 
+(defcustom my-gptel-sessions-fit-window t
+  "Non-nil means fit the sessions window height to the list.
+Done when the list is opened, on \\`g', and when the number of rows
+changes, never beyond `my-gptel-sessions-max-height'."
+  :type 'boolean)
+
+(defcustom my-gptel-sessions-max-height 0.33
+  "Maximum height of the sessions window when it is fitted.
+An integer is a number of lines (mode and header line included); a
+float is a fraction of the frame height."
+  :type '(choice (integer :tag "Lines")
+                 (float :tag "Fraction of frame")))
+
 (defvar my-gptel-sessions--timer nil
   "Timer refreshing the sessions list.")
+
+(defvar-local my-gptel-sessions--lines nil
+  "Line count of the sessions list when its window was last fitted.")
 
 (defun my-gptel-sessions--fsm-buffer (fsm)
   "Return the buffer of request FSM."
@@ -877,11 +897,41 @@ Running sub-agent requests follow their parent buffer's row."
     (cancel-timer my-gptel-sessions--timer))
   (setq my-gptel-sessions--timer nil))
 
+(defun my-gptel-sessions--max-lines (window)
+  "Return `my-gptel-sessions-max-height' for WINDOW in lines."
+  (if (floatp my-gptel-sessions-max-height)
+      (max window-min-height
+           (floor (* my-gptel-sessions-max-height
+                     (frame-height (window-frame window)))))
+    my-gptel-sessions-max-height))
+
+(defun my-gptel-sessions--fit (&optional force)
+  "Fit windows showing the current sessions buffer to its content.
+Only when `my-gptel-sessions-fit-window' is non-nil, and only if the
+line count changed since the last fit or FORCE is non-nil, so a manual
+resize survives the periodic refresh.  `fit-window-to-buffer' leaves
+windows alone that cannot be resized (e.g. the only window of a frame)."
+  (when my-gptel-sessions-fit-window
+    (let ((lines (count-lines (point-min) (point-max))))
+      (when (or force (not (eql lines my-gptel-sessions--lines)))
+        (setq my-gptel-sessions--lines lines)
+        (dolist (win (get-buffer-window-list nil nil t))
+          (fit-window-to-buffer win (my-gptel-sessions--max-lines win)))))))
+
+(defun my-gptel-sessions--print ()
+  "Redraw the current sessions buffer and fit its window if rows changed."
+  (tabulated-list-print t)
+  (my-gptel-sessions--fit))
+
+(defun my-gptel-sessions--fit-after-revert (&rest _)
+  "Refit the sessions window after \\`g' (`revert-buffer')."
+  (my-gptel-sessions--fit t))
+
 (defun my-gptel-sessions--refresh ()
   "Refresh the sessions list if visible; stop the timer if it is gone."
   (if-let* ((buf (get-buffer my-gptel-sessions-buffer)))
       (when (get-buffer-window buf t)
-        (with-current-buffer buf (tabulated-list-print t)))
+        (with-current-buffer buf (my-gptel-sessions--print)))
     (my-gptel-sessions--stop-timer)))
 
 (defun my-gptel-sessions-visit ()
@@ -911,14 +961,14 @@ Running sub-agent requests follow their parent buffer's row."
                             (if (bufferp id) "request" "sub-agent")
                             (buffer-name buf)))
       (my-gptel-sessions--abort-fsm fsm)
-      (tabulated-list-print t))))
+      (my-gptel-sessions--print))))
 
 (defun my-gptel-sessions-toggle-unleash ()
   "Toggle tool-call confirmation in the gptel session at point."
   (interactive)
   (when-let* ((buf (my-gptel-sessions--id-buffer (tabulated-list-get-id))))
     (with-current-buffer buf (my-gptel-agent-unleash))
-    (tabulated-list-print t)))
+    (my-gptel-sessions--print)))
 
 (defvar-keymap my-gptel-sessions-mode-map
   "RET" #'my-gptel-sessions-visit
@@ -934,6 +984,8 @@ Running sub-agent requests follow their parent buffer's row."
         tabulated-list-entries #'my-gptel-sessions--entries
         tabulated-list-sort-key nil)
   (tabulated-list-init-header)
+  (add-function :after (local 'revert-buffer-function)
+                #'my-gptel-sessions--fit-after-revert)
   (add-hook 'kill-buffer-hook #'my-gptel-sessions--stop-timer nil t)
   (unless (or (timerp my-gptel-sessions--timer)
               (<= my-gptel-sessions-refresh-interval 0))
@@ -949,7 +1001,8 @@ Running sub-agent requests follow their parent buffer's row."
     (unless (derived-mode-p 'my-gptel-sessions-mode)
       (my-gptel-sessions-mode))
     (tabulated-list-print t)
-    (pop-to-buffer (current-buffer))))
+    (pop-to-buffer (current-buffer))
+    (my-gptel-sessions--fit t)))
 #+END_SRC
 
 #+BEGIN_SRC emacs-lisp :tangle my-gptel.el
