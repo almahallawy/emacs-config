@@ -682,6 +682,27 @@ properties when yanking in gptel-mode buffers.
 (add-hook 'gptel-mode-hook #'my-gptel-strip-props-on-yank)
 #+END_SRC
 
+Also strip them when copying or killing from a gptel buffer, so the kill
+ring holds clean text wherever it is pasted (other buffers, other apps),
+and old response variants in `gptel-history' don't ride along.  Uses the
+buffer-local `filter-buffer-substring-function', so only gptel buffers are
+affected; the buffer itself keeps its properties.
+#+BEGIN_SRC emacs-lisp :tangle my-gptel.el
+(defun my-gptel-strip-props-on-copy (orig beg end &optional delete)
+  "Call ORIG with BEG END DELETE; remove gptel properties from the result."
+  (let ((s (funcall orig beg end delete)))
+    (when (stringp s)
+      (remove-list-of-text-properties
+       0 (length s) '(gptel gptel-history front-sticky) s))
+    s))
+
+(defun my-gptel-strip-props-on-copy-setup ()
+  "Strip gptel properties from text copied out of this buffer."
+  (add-function :around (local 'filter-buffer-substring-function)
+                #'my-gptel-strip-props-on-copy))
+(add-hook 'gptel-mode-hook #'my-gptel-strip-props-on-copy-setup)
+#+END_SRC
+
 ** Agent unleash (per-buffer tool confirmation toggle)
 Toggle tool-call confirmation in the current gptel buffer only, via a
 buffer-local `gptel-pre-tool-call-functions' hook.  Other buffers unaffected.
