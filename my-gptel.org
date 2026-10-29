@@ -1,0 +1,444 @@
+#+TITLE: gptel configuration
+#+STARTUP: showall
+#+STARTUP: indent
+#+PROPERTY: header-args:emacs-lisp  :tangle my-gptel.el
+
+All gptel settings and personal extensions.  Tangle with C-c C-v t: writes
+my-gptel.el, byte-compiled automatically by the hook in emacs.org (section
+"gptel"), which also loads it.  Edit this file, never my-gptel.el.
+
+Manual compile (e.g. after tangling from a bare emacs --batch):
+  emacs --batch -L ~/src/gptel -L ~/src/gptel-agent -f batch-byte-compile ~/src/emacs-config/my-gptel.el
+
+* File header
+#+BEGIN_SRC emacs-lisp
+;;; my-gptel.el --- gptel configuration and extensions -*- lexical-binding: t -*-
+
+;; Generated from my-gptel.org -- do not edit directly.
+
+;;; Code:
+
+(require 'cl-lib)
+(require 'seq)
+(require 'tabulated-list)
+(require 'use-package)
+#+END_SRC
+
+* gptel dependencies
+gptel and gptel-agent are loaded from source (not package.el), so their
+Package-Requires are not installed automatically:
+- gptel:       transient (>= 0.7.8), compat
+- gptel-agent: compat, yaml, orderless (orderless used by introspection tools)
+:ensure t is explicit: use-package-always-ensure (set in emacs.org) is not
+set when this file is compiled in batch.
+#+BEGIN_SRC emacs-lisp
+  (use-package compat :ensure t)
+  (use-package transient :ensure t)
+  (use-package yaml :ensure t)
+  (use-package orderless :ensure t)
+#+END_SRC
+
+* gptel
+#+BEGIN_SRC emacs-lisp
+;; eval-and-compile: the requires below also run at byte-compile time.
+(eval-and-compile
+  (add-to-list 'load-path (expand-file-name "~/src/gptel"))
+  (add-to-list 'load-path (expand-file-name "~/src/gptel-agent")))
+(require 'gptel)
+(require 'gptel-transient)   ; gptel-menu
+(require 'gptel-rewrite)     ; gptel-rewrite
+(require 'gptel-context)     ; gptel-add, gptel-add-file
+(require 'gptel-gh)
+(require 'gptel-bedrock)
+(require 'gptel-agent)
+(require 'gptel-agent-tools)
+
+(setq gptel-default-mode 'org-mode
+      gptel-cache t
+      gptel-expert-commands t   ; gptel-menu: Logging (-l, L) and Dry Run (I, J)
+      gptel-model 'claude-opus-5.5
+      gptel-backend (gptel-make-gh-copilot "Copilot"))
+
+;; Register gptel-agent preset (reads agents/gptel-agent.md via gptel-make-preset).
+(gptel-agent-update)
+
+;; Always read/write .gptel files as UTF-8.  Without this, a NUL byte in
+;; saved tool output makes Emacs detect the file as binary (no-conversion),
+;; which shifts GPTEL_BOUNDS positions and corrupts non-ASCII text on save.
+(add-to-list 'auto-coding-alist '("\\.gptel\\'" . utf-8-unix))
+
+(add-to-list 'auto-mode-alist
+             '("\\.gptel\\'" . (lambda ()
+                                 (setq buffer-file-coding-system 'utf-8-unix) ; new files too
+                                 (org-mode)
+                                 (gptel-mode)
+                                 ;; gptel-mode->gptel-org--restore-state sets
+                                 ;; gptel-tools from GPTEL_TOOLS: property for
+                                 ;; existing files.  For new files (no property),
+                                 ;; apply the gptel-agent preset to enable tools.
+                                 (unless gptel-tools
+                                   (gptel--apply-preset
+                                    'gptel-agent
+                                    (lambda (sym val)
+                                      (set (make-local-variable sym) val)))))))
+#+END_SRC
+
+* Copilot session token reset
+The Copilot session token is bound to the public IP.  A network change (e.g.
+VPN on/off) changes it, so a cached token can start returning HTTP 403
+before it expires.  gptel only renews on expiry, so clear it manually.
+#+BEGIN_SRC emacs-lisp
+(defun my-gptel-gh-reset-token ()
+  "Discard the cached Copilot session token so gptel fetches a new one.
+The token is bound to the public IP; run this after switching VPN on/off
+if requests fail with HTTP 403."
+  (interactive)
+  (dolist (b (mapcar #'cdr gptel--known-backends))
+    (when (gptel--gh-p b)
+      (setf (gptel--gh-token b) nil)))
+  (when (file-exists-p gptel-gh-token-file)
+    (delete-file gptel-gh-token-file))
+  (message "Copilot session token cleared; next request will fetch a new one."))
+#+END_SRC
+
+* Strip gptel properties on yank
+Text copied from a response carries the `gptel' text property (response /
+tool-call markers).  Pasted into a prompt, gptel would send it as an
+assistant turn or a bogus tool call, breaking the request.  Exclude these
+properties when yanking in gptel-mode buffers.
+#+BEGIN_SRC emacs-lisp
+(defun my-gptel-strip-props-on-yank ()
+  "Don't carry gptel's role-tracking properties into yanked text."
+  (setq-local yank-excluded-properties
+              (append '(gptel gptel-history) yank-excluded-properties)))
+(add-hook 'gptel-mode-hook #'my-gptel-strip-props-on-yank)
+#+END_SRC
+
+Also strip them when copying or killing from a gptel buffer, so the kill
+ring holds clean text wherever it is pasted (other buffers, other apps),
+and old response variants in `gptel-history' don't ride along.  Uses the
+buffer-local `filter-buffer-substring-function', so only gptel buffers are
+affected; the buffer itself keeps its properties.
+#+BEGIN_SRC emacs-lisp
+(defun my-gptel-strip-props-on-copy (orig beg end &optional delete)
+  "Call ORIG with BEG END DELETE; remove gptel properties from the result."
+  (let ((s (funcall orig beg end delete)))
+    (when (stringp s)
+      (remove-list-of-text-properties
+       0 (length s) '(gptel gptel-history front-sticky) s))
+    s))
+
+(defun my-gptel-strip-props-on-copy-setup ()
+  "Strip gptel properties from text copied out of this buffer."
+  (add-function :around (local 'filter-buffer-substring-function)
+                #'my-gptel-strip-props-on-copy))
+(add-hook 'gptel-mode-hook #'my-gptel-strip-props-on-copy-setup)
+#+END_SRC
+
+* Agent unleash (per-buffer tool confirmation toggle)
+Toggle tool-call confirmation in the current gptel buffer only, via a
+buffer-local `gptel-pre-tool-call-functions' hook.  Other buffers unaffected.
+C-c C-u in a gptel buffer toggles it.
+#+BEGIN_SRC emacs-lisp
+(defun my-gptel-agent-unleash--hook (_call)
+  "Skip confirmation for every tool call."
+  '(:confirm nil))
+
+(defun my-gptel-agent-unleash ()
+  "Toggle tool-call confirmation in the current gptel buffer only."
+  (interactive)
+  (if (memq #'my-gptel-agent-unleash--hook gptel-pre-tool-call-functions)
+      (progn (remove-hook 'gptel-pre-tool-call-functions
+                          #'my-gptel-agent-unleash--hook t)
+             (message "gptel agent reined in (%s)" (buffer-name)))
+    (add-hook 'gptel-pre-tool-call-functions
+              #'my-gptel-agent-unleash--hook nil t)
+    (message "gptel agent unleashed (%s)" (buffer-name))))
+
+(keymap-set gptel-mode-map "C-c C-u" #'my-gptel-agent-unleash)
+#+END_SRC
+
+* gptel sessions list
+M-x my-gptel-sessions lists all gptel buffers and the state of their
+requests, refreshed every `my-gptel-sessions-refresh-interval' seconds
+while visible.  Running gptel-agent sub-agents are shown as extra rows
+under their parent buffer.  Keys: RET visit, k abort, u toggle unleash,
+g refresh.
+The window is fitted to the list (up to `my-gptel-sessions-max-height')
+when it opens, on g, and whenever the number of rows changes; a manual
+resize is kept until then.  Set `my-gptel-sessions-fit-window' to nil to
+turn this off.
+#+BEGIN_SRC emacs-lisp
+;; gptel sessions list
+(defgroup my-gptel-sessions nil
+  "List gptel sessions and their request state."
+  :prefix "my-gptel-sessions-"
+  :group 'gptel)
+
+(defcustom my-gptel-sessions-buffer "*gptel-sessions*"
+  "Name of the gptel sessions list buffer."
+  :type 'string)
+
+(defcustom my-gptel-sessions-refresh-interval 5
+  "Seconds between automatic refreshes of the sessions list.
+A zero or negative value disables automatic refresh."
+  :type 'number)
+
+(defcustom my-gptel-sessions-fit-window t
+  "Non-nil means fit the sessions window height to the list.
+Done when the list is opened, on \\`g', and when the number of rows
+changes, never beyond `my-gptel-sessions-max-height'."
+  :type 'boolean)
+
+(defcustom my-gptel-sessions-max-height 0.33
+  "Maximum height of the sessions window when it is fitted.
+An integer is a number of lines (mode and header line included); a
+float is a fraction of the frame height."
+  :type '(choice (integer :tag "Lines")
+                 (float :tag "Fraction of frame")))
+
+(defvar my-gptel-sessions--timer nil
+  "Timer refreshing the sessions list.")
+
+(defvar-local my-gptel-sessions--lines nil
+  "Line count of the sessions list when its window was last fitted.")
+
+(defun my-gptel-sessions--fsm-buffer (fsm)
+  "Return the buffer of request FSM."
+  (plist-get (gptel-fsm-info fsm) :buffer))
+
+(defun my-gptel-sessions--subagent-ov (fsm)
+  "Return the gptel-agent task overlay of FSM, if it is a sub-agent."
+  (let ((ov (plist-get (gptel-fsm-info fsm) :context)))
+    (and (overlayp ov) (overlay-get ov 'gptel-agent) ov)))
+
+(defun my-gptel-sessions--tag-task-overlay (orig where &optional type desc)
+  "Call ORIG with WHERE, TYPE, DESC; record TYPE and DESC on the overlay."
+  (let ((ov (funcall orig where type desc)))
+    (overlay-put ov 'my-gptel-type type)
+    (overlay-put ov 'my-gptel-desc desc)
+    ov))
+
+(with-eval-after-load 'gptel-agent-tools
+  (advice-add 'gptel-agent--task-overlay :around
+              #'my-gptel-sessions--tag-task-overlay))
+
+(defun my-gptel-sessions--id-buffer (id)
+  "Return the buffer of row ID (a buffer or a request FSM)."
+  (if (bufferp id) id (my-gptel-sessions--fsm-buffer id)))
+
+(defun my-gptel-sessions--abort-fsm (fsm)
+  "Abort the running request FSM, like `gptel-abort' but for one request."
+  (when-let* ((entry (cl-find fsm gptel--request-alist :key #'cadr))
+              (info (gptel-fsm-info fsm)))
+    (with-demoted-errors "Callback error: %S"
+      (and-let* ((cb (plist-get info :callback))
+                 ((functionp cb)))
+        (funcall cb 'abort info)))
+    (funcall (cddr entry))
+    (setf (alist-get (car entry) gptel--request-alist nil 'remove) nil)
+    (gptel--fsm-transition fsm 'ABRT)))
+
+(defun my-gptel-sessions--status (state info)
+  "Describe request STATE with request INFO in words."
+  (pcase state
+    ('WAIT "waiting for LLM")
+    ('TYPE "receiving")
+    ('TOOL (if (plist-get info :tool-pending) "waiting C-c C-c" "running tools"))
+    ('DONE "done")
+    ('ERRS "error")
+    ('ABRT "aborted")
+    ('IDLE "idle")
+    (_ (symbol-name state))))
+
+(defun my-gptel-sessions--state-face (state running)
+  "Return the face for request STATE; RUNNING is non-nil if in flight."
+  (pcase state
+    ('ERRS 'error)
+    ('ABRT 'shadow)
+    (_ (if running 'success 'shadow))))
+
+(defun my-gptel-sessions--backend-name (backend)
+  "Return the name of BACKEND, or \"\" if none."
+  (if (gptel-backend-p backend) (gptel-backend-name backend) ""))
+
+(defun my-gptel-sessions--entry (buf active)
+  "Return the list entry for BUF.  ACTIVE is the list of running FSMs."
+  (with-current-buffer buf
+    (let* ((fsm (or (cl-find buf active :key #'my-gptel-sessions--fsm-buffer)
+                    gptel--fsm-last))
+           (state (if fsm (gptel-fsm-state fsm) 'IDLE))
+           (info (and fsm (gptel-fsm-info fsm)))
+           (running (and fsm (memq fsm active))))
+      (list buf
+            (vector (buffer-name)
+                    (propertize (symbol-name state)
+                                'face (my-gptel-sessions--state-face
+                                       state running))
+                    (my-gptel-sessions--status state info)
+                    (my-gptel-sessions--backend-name
+                     (if running (plist-get info :backend) gptel-backend))
+                    (format "%s" (if running (plist-get info :model) gptel-model))
+                    (if (memq #'my-gptel-agent-unleash--hook
+                              gptel-pre-tool-call-functions)
+                        "yes" "")
+                    (format "%s" (or (plist-get info :error) "")))))))
+
+(defun my-gptel-sessions--subagent-entry (fsm)
+  "Return the list entry for running sub-agent request FSM."
+  (let* ((ov (my-gptel-sessions--subagent-ov fsm))
+         (info (gptel-fsm-info fsm))
+         (state (gptel-fsm-state fsm))
+         (count (or (overlay-get ov 'count) 0)))
+    (list fsm
+          (vector (format "  ↳ %s: %s"
+                          (or (overlay-get ov 'my-gptel-type) "agent")
+                          (or (overlay-get ov 'my-gptel-desc) ""))
+                  (propertize (symbol-name state)
+                              'face (my-gptel-sessions--state-face state t))
+                  (format "%s (%d tool%s)"
+                          (my-gptel-sessions--status state info)
+                          count (if (= count 1) "" "s"))
+                  (my-gptel-sessions--backend-name (plist-get info :backend))
+                  (format "%s" (or (plist-get info :model) ""))
+                  ""
+                  (format "%s" (or (plist-get info :error) ""))))))
+
+(defun my-gptel-sessions--entries ()
+  "Return entries for all gptel buffers and buffers with running requests.
+Running sub-agent requests follow their parent buffer's row."
+  (let* ((all (mapcar #'cadr gptel--request-alist))
+         (subs (seq-filter #'my-gptel-sessions--subagent-ov all))
+         (active (seq-difference all subs))
+         (bufs (seq-uniq
+                (append (seq-filter (lambda (b) (buffer-local-value 'gptel-mode b))
+                                    (buffer-list))
+                        (delq nil (mapcar #'my-gptel-sessions--fsm-buffer all))))))
+    (mapcan (lambda (b)
+              (cons (my-gptel-sessions--entry b active)
+                    (mapcar #'my-gptel-sessions--subagent-entry
+                            (seq-filter (lambda (f)
+                                          (eq (my-gptel-sessions--fsm-buffer f) b))
+                                        subs))))
+            (sort (seq-filter #'buffer-live-p bufs)
+                  (lambda (a b) (string< (buffer-name a) (buffer-name b)))))))
+
+(defun my-gptel-sessions--stop-timer ()
+  "Cancel the refresh timer."
+  (when (timerp my-gptel-sessions--timer)
+    (cancel-timer my-gptel-sessions--timer))
+  (setq my-gptel-sessions--timer nil))
+
+(defun my-gptel-sessions--max-lines (window)
+  "Return `my-gptel-sessions-max-height' for WINDOW in lines."
+  (if (floatp my-gptel-sessions-max-height)
+      (max window-min-height
+           (floor (* my-gptel-sessions-max-height
+                     (frame-height (window-frame window)))))
+    my-gptel-sessions-max-height))
+
+(defun my-gptel-sessions--fit (&optional force)
+  "Fit windows showing the current sessions buffer to its content.
+Only when `my-gptel-sessions-fit-window' is non-nil, and only if the
+line count changed since the last fit or FORCE is non-nil, so a manual
+resize survives the periodic refresh.  `fit-window-to-buffer' leaves
+windows alone that cannot be resized (e.g. the only window of a frame)."
+  (when my-gptel-sessions-fit-window
+    (let ((lines (count-lines (point-min) (point-max))))
+      (when (or force (not (eql lines my-gptel-sessions--lines)))
+        (setq my-gptel-sessions--lines lines)
+        (dolist (win (get-buffer-window-list nil nil t))
+          (fit-window-to-buffer win (my-gptel-sessions--max-lines win)))))))
+
+(defun my-gptel-sessions--print ()
+  "Redraw the current sessions buffer and fit its window if rows changed."
+  (tabulated-list-print t)
+  (my-gptel-sessions--fit))
+
+(defun my-gptel-sessions--fit-after-revert (&rest _)
+  "Refit the sessions window after \\`g' (`revert-buffer')."
+  (my-gptel-sessions--fit t))
+
+(defun my-gptel-sessions--refresh ()
+  "Refresh the sessions list if visible; stop the timer if it is gone."
+  (if-let* ((buf (get-buffer my-gptel-sessions-buffer)))
+      (when (get-buffer-window buf t)
+        (with-current-buffer buf (my-gptel-sessions--print)))
+    (my-gptel-sessions--stop-timer)))
+
+(defun my-gptel-sessions-visit ()
+  "Jump to the gptel session (or sub-agent task) at point."
+  (interactive)
+  (when-let* ((id (tabulated-list-get-id))
+              (buf (my-gptel-sessions--id-buffer id)))
+    (pop-to-buffer buf)
+    (when-let* (((not (bufferp id)))
+                (ov (my-gptel-sessions--subagent-ov id))
+                (pos (overlay-start ov)))
+      (goto-char pos))))
+
+(defun my-gptel-sessions-abort ()
+  "Abort the request (session or sub-agent) at point."
+  (interactive)
+  (when-let* ((id (tabulated-list-get-id))
+              (buf (my-gptel-sessions--id-buffer id))
+              (fsm (if (bufferp id)
+                       (cl-find-if
+                        (lambda (f)
+                          (and (eq (my-gptel-sessions--fsm-buffer f) buf)
+                               (not (my-gptel-sessions--subagent-ov f))))
+                        (mapcar #'cadr gptel--request-alist))
+                     id)))
+    (when (y-or-n-p (format "Abort %s in %s? "
+                            (if (bufferp id) "request" "sub-agent")
+                            (buffer-name buf)))
+      (my-gptel-sessions--abort-fsm fsm)
+      (my-gptel-sessions--print))))
+
+(defun my-gptel-sessions-toggle-unleash ()
+  "Toggle tool-call confirmation in the gptel session at point."
+  (interactive)
+  (when-let* ((buf (my-gptel-sessions--id-buffer (tabulated-list-get-id))))
+    (with-current-buffer buf (my-gptel-agent-unleash))
+    (my-gptel-sessions--print)))
+
+(defvar-keymap my-gptel-sessions-mode-map
+  "RET" #'my-gptel-sessions-visit
+  "k"   #'my-gptel-sessions-abort
+  "u"   #'my-gptel-sessions-toggle-unleash)
+
+(define-derived-mode my-gptel-sessions-mode tabulated-list-mode "gptel-sessions"
+  "Major mode listing gptel sessions."
+  ;; Not sortable: rows are ordered so sub-agents follow their parent.
+  (setq tabulated-list-format [("Buffer" 40 nil) ("State" 6 nil) ("Status" 26 nil)
+                               ("Backend" 12 nil) ("Model" 18 nil)
+                               ("Unleashed" 9 nil) ("Error" 30 nil)]
+        tabulated-list-entries #'my-gptel-sessions--entries
+        tabulated-list-sort-key nil)
+  (tabulated-list-init-header)
+  (add-function :after (local 'revert-buffer-function)
+                #'my-gptel-sessions--fit-after-revert)
+  (add-hook 'kill-buffer-hook #'my-gptel-sessions--stop-timer nil t)
+  (unless (or (timerp my-gptel-sessions--timer)
+              (<= my-gptel-sessions-refresh-interval 0))
+    (setq my-gptel-sessions--timer
+          (run-with-timer my-gptel-sessions-refresh-interval
+                          my-gptel-sessions-refresh-interval
+                          #'my-gptel-sessions--refresh))))
+
+(defun my-gptel-sessions ()
+  "List all gptel sessions and the state of their requests."
+  (interactive)
+  (with-current-buffer (get-buffer-create my-gptel-sessions-buffer)
+    (unless (derived-mode-p 'my-gptel-sessions-mode)
+      (my-gptel-sessions-mode))
+    (tabulated-list-print t)
+    (pop-to-buffer (current-buffer))
+    (my-gptel-sessions--fit t)))
+#+END_SRC
+
+* Provide
+#+BEGIN_SRC emacs-lisp
+(provide 'my-gptel)
+;;; my-gptel.el ends here
+#+END_SRC

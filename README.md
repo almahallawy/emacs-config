@@ -9,7 +9,8 @@ My Emacs configuration, written as a literate Org file.
 | `emacs.org` | **The config.** All settings, with notes. Edit this one. | yes |
 | `.emacs` | Bootstrap: sets `load-prefer-newer`, adds this directory to `load-path`, loads `kia-config`. | yes |
 | `kia-config.el` | Generated from `emacs.org` (tangle). General config. | no |
-| `my-gptel.el` | Generated from `emacs.org`. Personal gptel extensions (see below). | no |
+| `my-gptel.org` | gptel settings and personal extensions. Loaded from `emacs.org` (section *gptel*). | yes |
+| `my-gptel.el` | Generated from `my-gptel.org`. | no |
 | `my-gptel.elc` | Compiled `my-gptel.el`, rebuilt automatically after each tangle. | no |
 | `cscope-update`, `ec` | Helper scripts. | yes |
 | `emacs-gdb.txt` | Notes on debugging Emacs with gdb. | yes |
@@ -44,10 +45,13 @@ every tangle.
    tangle from the command line and compile once:
    ```sh
    cd ~/src/emacs-config
-   emacs --batch --eval '(progn (require (quote org)) (org-babel-tangle-file "emacs.org"))'
-   emacs --batch -L ~/src/gptel -L ~/src/gptel-agent -f batch-byte-compile my-gptel.el
+   emacs --batch --eval '(progn (require (quote org)) (org-babel-tangle-file "emacs.org") (org-babel-tangle-file "my-gptel.org"))'
    ```
-5. **Start Emacs.** Packages from MELPA/GNU ELPA install on first start.
+5. **Start Emacs.** Packages from MELPA/GNU ELPA install on first start
+   (my-gptel*.el load uncompiled this time). Then compile once, either
+   ```sh
+   emacs --batch -f package-activate-all -L ~/src/gptel -L ~/src/gptel-agent \
+   ```
 6. **Shell (optional):** `ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash`
    (see `emacs.org`, *Shell > ~/.emacs_bash*). Needed for prompt colours and
    directory tracking in `M-x shell` and `M-x ssh`; remote hosts need nothing.
@@ -58,7 +62,7 @@ every tangle.
 2. `C-c C-v t` (`org-babel-tangle`) in that org buffer. This writes
    `my-gptel*.el` files.
 3. Restart Emacs (or eval the changed block).
-4. Commit `emacs.org` (and `.emacs` if changed).
+4. Commit the `.org` file (and `.emacs` if changed).
 
 **After `git pull` on another machine:** tangle again (step 2) and restart.
 If that Emacs predates the auto-compile hook, run the compile command from
@@ -70,7 +74,7 @@ Default backend: **GitHub Copilot**, model `claude-opus-5.5`.
 Switch backend/model with `M-x gptel-menu` (or `C-u C-c RET` in a chat
 buffer); `C-c RET` alone sends.
 
-Personal additions (all in `my-gptel.el`, section *gptel setup* in `emacs.org`):
+Settings and personal additions are in `my-gptel.org`:
 
 | Command / key | What it does |
 |---------------|--------------|
@@ -78,8 +82,9 @@ Personal additions (all in `my-gptel.el`, section *gptel setup* in `emacs.org`):
 | `C-c C-u` (in a gptel buffer) | Toggle tool-call confirmation for this buffer only ("unleash"). |
 | `M-x my-gptel-gh-reset-token` | Clear the cached Copilot session token. Use after switching VPN on/off if Copilot returns **HTTP 403**. |
 
-Text yanked into a gptel buffer is stripped of gptel's internal properties,
-so pasting part of a response doesn't confuse the request.
+Text yanked into a gptel buffer, or copied/killed out of one, is stripped of
+gptel's internal properties, so pasting part of a response doesn't turn into
+a bogus assistant turn or tool call.
 
 
 ## Troubleshooting
