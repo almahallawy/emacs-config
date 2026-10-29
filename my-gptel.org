@@ -227,17 +227,19 @@ float is a fraction of the frame height."
   "Return the buffer of row ID (a buffer or a request FSM)."
   (if (bufferp id) id (my-gptel-sessions--fsm-buffer id)))
 
+(defvar gptel--request-alist)
+
 (defun my-gptel-sessions--abort-fsm (fsm)
-  "Abort the running request FSM, like `gptel-abort' but for one request."
-  (when-let* ((entry (cl-find fsm gptel--request-alist :key #'cadr))
-              (info (gptel-fsm-info fsm)))
-    (with-demoted-errors "Callback error: %S"
-      (and-let* ((cb (plist-get info :callback))
-                 ((functionp cb)))
-        (funcall cb 'abort info)))
-    (funcall (cddr entry))
-    (setf (alist-get (car entry) gptel--request-alist nil 'remove) nil)
-    (gptel--fsm-transition fsm 'ABRT)))
+  "Abort the running request FSM only, using `gptel-abort'.
+`gptel-abort' stops the first request it finds for a buffer, which may
+be a sub-agent.  So it runs with `gptel--request-alist' narrowed to
+FSM's entry, and the entry is then dropped from the real list."
+  (let ((entry (cl-find fsm gptel--request-alist :key #'cadr)))
+    (unless entry
+      (user-error "Request not found in `gptel--request-alist'"))
+    (let ((gptel--request-alist (list entry)))
+      (gptel-abort (my-gptel-sessions--fsm-buffer fsm)))
+    (setq gptel--request-alist (delq entry gptel--request-alist))))
 
 (defun my-gptel-sessions--status (state info)
   "Describe request STATE with request INFO in words."
