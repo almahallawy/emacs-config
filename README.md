@@ -7,7 +7,7 @@ My Emacs configuration, written as a literate Org file.
 | File | What it is | In git? |
 |------|------------|---------|
 | `emacs.org` | **The config.** All settings, with notes. Edit this one. | yes |
-| `.emacs` | Bootstrap: sets `load-prefer-newer`, adds this directory to `load-path`, loads `kia-config`. | yes |
+| `.emacs` | Bootstrap, hand-written. Tangles any `.org` whose `.el` is missing or older, loads `kia-config`, compiles `my-gptel*.el`. | yes |
 | `kia-config.el` | Generated from `emacs.org` (tangle). General config. | no |
 | `my-gptel.org` | gptel settings and personal extensions. Loaded from `emacs.org` (section *gptel*). | yes |
 | `my-gptel.el` | Generated from `my-gptel.org`. | no |
@@ -41,32 +41,23 @@ every tangle.
    ```elisp
    (load "~/src/emacs-config/.emacs")
    ```
-4. **Generate the config files.** The first time, nothing is generated yet, so
-   tangle from the command line and compile once:
-   ```sh
-   cd ~/src/emacs-config
-   emacs --batch --eval '(progn (require (quote org)) (org-babel-tangle-file "emacs.org") (org-babel-tangle-file "my-gptel.org"))'
-   ```
-5. **Start Emacs.** Packages from MELPA/GNU ELPA install on first start
-   (my-gptel*.el load uncompiled this time). Then compile once, either
-   ```sh
-   emacs --batch -f package-activate-all -L ~/src/gptel -L ~/src/gptel-agent \
-   ```
-6. **Shell (optional):** `ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash`
+4. **Start Emacs.** The first start tangles `emacs.org`, `my-gptel.org` and
+   `my-gptel*.el`. Takes a minute; later starts are normal.
+5. **Shell (optional):** `ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash`
    (see `emacs.org`, *Shell > ~/.emacs_bash*). Needed for prompt colours and
    directory tracking in `M-x shell` and `M-x ssh`; remote hosts need nothing.
-7. **Secrets** go in `~/.authinfo.gpg` (never in this repo), e.g. tokens
+6. **Secrets** go in `~/.authinfo.gpg` (never in this repo), e.g. tokens
 
 ## Day-to-day: changing the config
 
-2. `C-c C-v t` (`org-babel-tangle`) in that org buffer. This writes
-   `my-gptel*.el` files.
-3. Restart Emacs (or eval the changed block).
-4. Commit the `.org` file (and `.emacs` if changed).
+2. Restart Emacs: `.emacs` re-tangles the changed `.org` and recompiles.
+   Or, to apply without restarting: `C-c C-v t` in that org buffer (tangles,
+   and compiles `my-gptel*.el`), then eval the changed block.
+3. Commit the `.org` file (and `.emacs` if changed).
 
-**After `git pull` on another machine:** tangle again (step 2) and restart.
-If that Emacs predates the auto-compile hook, run the compile command from
-setup step 4 once.
+`.emacs` is hand-written (not tangled): edit it directly and commit.
+
+**After `git pull` on another machine:** just restart Emacs.
 
 ## gptel (LLM chat)
 
@@ -92,7 +83,8 @@ a bogus assistant turn or tool call.
 | Symptom | Fix |
 |---------|-----|
 | Copilot: HTTP 403 after VPN on/off | `M-x my-gptel-gh-reset-token`, then retry. |
-| A config change has no effect | Did you tangle (`C-c C-v t`) and restart? |
+| A config change has no effect | Restart Emacs (or `C-c C-v t` and eval the block). |
+| Startup error after a change | Fix the `.org`, then `C-c C-v t` in it (or `touch` it and restart). |
 
 ## Credits
 

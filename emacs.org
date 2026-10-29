@@ -5,22 +5,14 @@
 #+PROPERTY: header-args:emacs-lisp  :tangle kia-config.el
 
 * Generate the emacs configuration file
- M-x org-babel-tangle (C-c C-v t)
+Nothing to do by hand.  The repo's .emacs (hand-written, not tangled; see
+whenever their .el output is missing or older, then loads kia-config and
+compiles my-gptel*.el.  C-c C-v t still works for applying a change without
+restarting.
 
-This will generate kia-config.el.  gptel settings are in my-gptel.org
-(tangles to my-gptel.el, byte-compiled automatically once this config is
-loaded); see section "gptel".
-Add the following to your ~/.emacs file (keep Custom's block below it):
+~/.emacs contains only (keep Custom's block below it):
 
 (load "~/src/emacs-config/.emacs")
-
-The repo's .emacs (src/emacs-config is the location of the emacs config) contains:
-
-;; Load a newer .el over a stale .elc (e.g. my-gptel after tangling).
-(setq load-prefer-newer t)
-(defvar kia-emacs-directory "~/src/emacs-config")
-(add-to-list 'load-path kia-emacs-directory)
-(require 'kia-config)
 
 * Prerequisites
 Clone these into ~/src before the first start; they are loaded from there:
