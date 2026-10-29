@@ -327,6 +327,19 @@ Running sub-agent requests follow their parent buffer's row."
     (cancel-timer my-gptel-sessions--timer))
   (setq my-gptel-sessions--timer nil))
 
+(defun my-gptel-sessions--start-timer ()
+  "Start the refresh timer unless it is already scheduled.
+Checks `timer-list' too, so a timer lost by reloading this file or by
+`cancel-timer' elsewhere is replaced."
+  (unless (or (<= my-gptel-sessions-refresh-interval 0)
+              (and (timerp my-gptel-sessions--timer)
+                   (memq my-gptel-sessions--timer timer-list)))
+    (my-gptel-sessions--stop-timer)
+    (setq my-gptel-sessions--timer
+          (run-with-timer my-gptel-sessions-refresh-interval
+                          my-gptel-sessions-refresh-interval
+                          #'my-gptel-sessions--refresh))))
+
 (defun my-gptel-sessions--max-lines (window)
   "Return `my-gptel-sessions-max-height' for WINDOW in lines."
   (if (floatp my-gptel-sessions-max-height)
@@ -354,8 +367,10 @@ windows alone that cannot be resized (e.g. the only window of a frame)."
   (my-gptel-sessions--fit))
 
 (defun my-gptel-sessions--fit-after-revert (&rest _)
-  "Refit the sessions window after \\`g' (`revert-buffer')."
-  (my-gptel-sessions--fit t))
+  "Refit the sessions window after \\`g' (`revert-buffer').
+Also restart the refresh timer if it was lost."
+  (my-gptel-sessions--fit t)
+  (my-gptel-sessions--start-timer))
 
 (defun my-gptel-sessions--refresh ()
   "Refresh the sessions list if visible; stop the timer if it is gone."
@@ -417,12 +432,7 @@ windows alone that cannot be resized (e.g. the only window of a frame)."
   (add-function :after (local 'revert-buffer-function)
                 #'my-gptel-sessions--fit-after-revert)
   (add-hook 'kill-buffer-hook #'my-gptel-sessions--stop-timer nil t)
-  (unless (or (timerp my-gptel-sessions--timer)
-              (<= my-gptel-sessions-refresh-interval 0))
-    (setq my-gptel-sessions--timer
-          (run-with-timer my-gptel-sessions-refresh-interval
-                          my-gptel-sessions-refresh-interval
-                          #'my-gptel-sessions--refresh))))
+  (my-gptel-sessions--start-timer))
 
 (defun my-gptel-sessions ()
   "List all gptel sessions and the state of their requests."
@@ -430,6 +440,7 @@ windows alone that cannot be resized (e.g. the only window of a frame)."
   (with-current-buffer (get-buffer-create my-gptel-sessions-buffer)
     (unless (derived-mode-p 'my-gptel-sessions-mode)
       (my-gptel-sessions-mode))
+    (my-gptel-sessions--start-timer)
     (tabulated-list-print t)
     (pop-to-buffer (current-buffer))
     (my-gptel-sessions--fit t)))
