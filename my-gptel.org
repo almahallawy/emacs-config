@@ -3,12 +3,10 @@
 #+STARTUP: indent
 #+PROPERTY: header-args:emacs-lisp  :tangle my-gptel.el
 
-All gptel settings and personal extensions.  Tangle with C-c C-v t: writes
-my-gptel.el, byte-compiled automatically by the hook in emacs.org (section
-"gptel"), which also loads it.  Edit this file, never my-gptel.el.
-
-Manual compile (e.g. after tangling from a bare emacs --batch):
-  emacs --batch -L ~/src/gptel -L ~/src/gptel-agent -f batch-byte-compile ~/src/emacs-config/my-gptel.el
+All gptel settings and personal extensions.  Tangles to my-gptel.el, which
+emacs.org (section "gptel") loads.  .emacs re-tangles and compiles it at
+startup when this file is newer; C-c C-v t does the same without a restart.
+Edit this file, never my-gptel.el.
 
 * File header
 #+BEGIN_SRC emacs-lisp

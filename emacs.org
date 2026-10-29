@@ -1,7 +1,7 @@
 #+TITLE: Emacs Configuration
 #+STARTUP: showall
 #+STARTUP: indent
-#+OPTIONS: toc:4 h:4
+#+OPTIONS: toc:4 H:4
 #+PROPERTY: header-args:emacs-lisp  :tangle kia-config.el
 
 * Generate the emacs configuration file
@@ -32,6 +32,12 @@ Shell (manual step):
   prompt colours, no directory tracking (default-directory and F1 buffer
   names don't follow cd), no colour from git/ls/grep, and pagers (less)
   break.  Nothing is needed in ~/.bashrc, locally or on remote hosts.
+
+* File header
+#+BEGIN_SRC emacs-lisp
+;;; kia-config.el --- Emacs configuration -*- lexical-binding: t -*-
+;; Generated from emacs.org -- do not edit directly.
+#+END_SRC
 
 * Packages
 #+BEGIN_SRC emacs-lisp
@@ -405,7 +411,6 @@ From: https://codeberg.org/jao/elibs/src/branch/main/completion.org
                (company-idle-delay 0.2)
                (company-lighter "")
                (company-lighter-base "")
-               (company-show-numbers nil)
                (company-selection-wrap-around t)
                (company-tooltip-limit 15)
                (company-tooltip-align-annotations t)
@@ -443,8 +448,7 @@ Ours: fall back to `completion-at-point' when company is off
              :filter (or (not (derived-mode-p 'eshell-mode 'shell-mode))
                          (company-explicit-action-p))
              ("<return>" . #'company-complete-selection)
-             ("RET" . #'company-complete-selection))
-      :diminish)
+             ("RET" . #'company-complete-selection)))
 
     (global-company-mode 1)
 
