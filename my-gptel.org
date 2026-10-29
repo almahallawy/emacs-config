@@ -158,8 +158,10 @@ C-c C-u in a gptel buffer toggles it.
 
 * gptel sessions list
 M-x my-gptel-sessions lists all gptel buffers and the state of their
-requests, refreshed every `my-gptel-sessions-refresh-interval' seconds
-while visible.  Running gptel-agent sub-agents are shown as extra rows
+requests.  It redraws 0.2 s after any request changes state (advice on
+gptel's internal `gptel--fsm-transition'), and also every
+`my-gptel-sessions-refresh-interval' seconds while visible, for sub-agent
+tool counts.  Running gptel-agent sub-agents are shown as extra rows
 under their parent buffer.  Keys: RET visit, k abort, u toggle unleash,
 g refresh.
 The window is fitted to the list (up to `my-gptel-sessions-max-height')
@@ -260,6 +262,14 @@ float is a fraction of the frame height."
   "Return the name of BACKEND, or \"\" if none."
   (if (gptel-backend-p backend) (gptel-backend-name backend) ""))
 
+(defun my-gptel-sessions--error (info)
+  "Return the error in request INFO as one short line, or \"\"."
+  (if-let* ((err (plist-get info :error)))
+      (truncate-string-to-width
+       (replace-regexp-in-string "[ \t\n]+" " " (format "%s" err))
+       80 nil nil "…")
+    ""))
+
 (defun my-gptel-sessions--entry (buf active)
   "Return the list entry for BUF.  ACTIVE is the list of running FSMs."
   (with-current-buffer buf
@@ -280,7 +290,7 @@ float is a fraction of the frame height."
                     (if (memq #'my-gptel-agent-unleash--hook
                               gptel-pre-tool-call-functions)
                         "yes" "")
-                    (format "%s" (or (plist-get info :error) "")))))))
+                    (my-gptel-sessions--error info))))))
 
 (defun my-gptel-sessions--subagent-entry (fsm)
   "Return the list entry for running sub-agent request FSM."
@@ -300,7 +310,7 @@ float is a fraction of the frame height."
                   (my-gptel-sessions--backend-name (plist-get info :backend))
                   (format "%s" (or (plist-get info :model) ""))
                   ""
-                  (format "%s" (or (plist-get info :error) ""))))))
+                  (my-gptel-sessions--error info)))))
 
 (defun my-gptel-sessions--entries ()
   "Return entries for all gptel buffers and buffers with running requests.
@@ -379,6 +389,25 @@ Also restart the refresh timer if it was lost."
         (with-current-buffer buf (my-gptel-sessions--print)))
     (my-gptel-sessions--stop-timer)))
 
+(defvar my-gptel-sessions--pending nil
+  "Timer for a scheduled redraw after a request state change.")
+
+(defun my-gptel-sessions--on-transition (&rest _)
+  "Redraw the sessions list soon after any gptel request changes state.
+Coalesces bursts of transitions into one redraw 0.2 s later."
+  (when (and (not my-gptel-sessions--pending)
+             (get-buffer my-gptel-sessions-buffer))
+    (setq my-gptel-sessions--pending
+          (run-with-timer 0.2 nil
+                          (lambda ()
+                            (setq my-gptel-sessions--pending nil)
+                            (my-gptel-sessions--refresh))))))
+
+;; Internal gptel function, called on every request state change.
+(with-eval-after-load 'gptel-request
+  (advice-add 'gptel--fsm-transition :after
+              #'my-gptel-sessions--on-transition))
+
 (defun my-gptel-sessions-visit ()
   "Jump to the gptel session (or sub-agent task) at point."
   (interactive)
@@ -402,11 +431,13 @@ Also restart the refresh timer if it was lost."
                                (not (my-gptel-sessions--subagent-ov f))))
                         (mapcar #'cadr gptel--request-alist))
                      id)))
-    (when (y-or-n-p (format "Abort %s in %s? "
-                            (if (bufferp id) "request" "sub-agent")
-                            (buffer-name buf)))
-      (my-gptel-sessions--abort-fsm fsm)
-      (my-gptel-sessions--print))))
+    (if (not (and fsm (cl-find fsm gptel--request-alist :key #'cadr)))
+        (message "No running request in %s" (buffer-name buf))
+      (when (y-or-n-p (format "Abort %s in %s? "
+                              (if (bufferp id) "request" "sub-agent")
+                              (buffer-name buf)))
+        (my-gptel-sessions--abort-fsm fsm)
+        (my-gptel-sessions--print)))))
 
 (defun my-gptel-sessions-toggle-unleash ()
   "Toggle tool-call confirmation in the gptel session at point."
