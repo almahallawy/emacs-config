@@ -9,14 +9,16 @@ My Emacs configuration, written as a literate Org file.
 | `emacs.org` | **The config.** All settings, with notes. Edit this one. | yes |
 | `.emacs` | Bootstrap, hand-written. Tangles any `.org` whose `.el` is missing or older, loads `kia-config`, compiles `my-gptel*.el`. | yes |
 | `kia-config.el` | Generated from `emacs.org` (tangle). General config. | no |
+| `emacs_bash` | Generated from `emacs.org` (*Shell > ~/.emacs_bash*). Committed so `~/.emacs_bash` can symlink to it. | yes |
 | `my-gptel.org` | gptel settings and personal extensions. Loaded from `emacs.org` (section *gptel*). | yes |
 | `my-gptel.el` | Generated from `my-gptel.org`. | no |
 | `my-gptel.elc` | Compiled `my-gptel.el`, rebuilt automatically after each tangle. | no |
 | `cscope-update`, `ec` | Helper scripts. | yes |
 | `emacs-gdb.txt` | Notes on debugging Emacs with gdb. | yes |
 
-Never edit `kia-config.el` or `my-gptel*.el` by hand. They are overwritten on
-every tangle.
+Never edit `kia-config.el`, `emacs_bash` or `my-gptel*.el` by hand. They are
+overwritten on every tangle. Edit the `.org` files; `.emacs` is the only
+hand-edited code file.
 
 ## Setting up a new machine
 
@@ -53,11 +55,31 @@ every tangle.
 2. Restart Emacs: `.emacs` re-tangles the changed `.org` and recompiles.
    Or, to apply without restarting: `C-c C-v t` in that org buffer (tangles,
    and compiles `my-gptel*.el`), then eval the changed block.
-3. Commit the `.org` file (and `.emacs` if changed).
+3. Commit the `.org` file (and `.emacs`, and `emacs_bash` if the shell
+   section changed).
 
 `.emacs` is hand-written (not tangled): edit it directly and commit.
 
 **After `git pull` on another machine:** just restart Emacs.
+
+### How tangling works
+
+| Source | Tangles to | Then |
+|--------|------------|------|
+| `emacs.org` | `kia-config.el`, `emacs_bash` | `.emacs` does `(require 'kia-config)` (not compiled). |
+| `my-gptel.org` | `my-gptel.el` | Byte-compiled to `.elc`; required from `emacs.org` (*gptel*). |
+
+On every start `.emacs`:
+1. Tangles each `.org` whose `.el` is missing or older than the `.org`, then
+   touches the `.el` (Org skips writing an unchanged file, so a prose-only
+   edit would otherwise re-tangle on every start).
+2. Loads `kia-config`, which loads `my-gptel` and any `my-gptel-*.el`.
+   `load-prefer-newer` makes a fresh `.el` win over a stale `.elc`.
+3. Recompiles each `my-gptel*.el` whose `.elc` is missing or older (used from
+   the next start). Compile warnings don't pop up.
+
+`C-c C-v t` does the same by hand: tangles, and a post-tangle hook (in
+`emacs.org`, *gptel*) compiles `my-gptel*.el`.
 
 ## gptel (LLM chat)
 
