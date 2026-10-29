@@ -93,6 +93,13 @@ Shell (manual step):
 (global-set-key [C-tab] 'other-window)
 #+END_SRC
 
+** Built-in keys worth remembering (no config)
+- Window dedication (Emacs 30+, =toggle-window-dedicated=):
+  - =C-x w d=: weak. =display-buffer= won't reuse the window, but
+    =C-x b= can still switch it.
+  - =C-u C-x w d=: strong. =C-x b= can't switch it either.
+  - =C-x w d= again: undedicate.
+
 * Server
 #+BEGIN_SRC emacs-lisp
 (require 'server)
