@@ -164,6 +164,9 @@ gptel's internal `gptel--fsm-transition'), and also every
 tool counts.  Running gptel-agent sub-agents are shown as extra rows
 under their parent buffer.  Keys: RET visit, k abort, u toggle unleash,
 g refresh.
+Status shows "inferring" while the model works and the names of running
+tools (e.g. →Bash,Read).  The row of the gptel buffer in the selected
+window (or the last one, while the list is selected) is highlighted.
 The window is fitted to the list (up to `my-gptel-sessions-max-height')
 when it opens, on g, and whenever the number of rows changes; a manual
 resize is kept until then.  Set `my-gptel-sessions-fit-window' to nil to
@@ -244,9 +247,15 @@ FSM's entry, and the entry is then dropped from the real list."
 (defun my-gptel-sessions--status (state info)
   "Describe request STATE with request INFO in words."
   (pcase state
-    ('WAIT "waiting for LLM")
+    ('WAIT "inferring")
     ('TYPE "receiving")
-    ('TOOL (if (plist-get info :tool-pending) "waiting C-c C-c" "running tools"))
+    ('TOOL (cond ((plist-get info :tool-pending) "waiting C-c C-c")
+                 ((when-let* ((names (delq nil (mapcar (lambda (c)
+                                                         (unless (plist-get c :result)
+                                                           (plist-get c :name)))
+                                                       (plist-get info :tool-use)))))
+                    (concat "→" (mapconcat #'identity (seq-uniq names) ","))))
+                 (t "running tools")))
     ('DONE "done")
     ('ERRS "error")
     ('ABRT "aborted")
@@ -376,7 +385,45 @@ windows alone that cannot be resized (e.g. the only window of a frame)."
 (defun my-gptel-sessions--print ()
   "Redraw the current sessions buffer and fit its window if rows changed."
   (tabulated-list-print t)
-  (my-gptel-sessions--fit))
+  (my-gptel-sessions--fit)
+  (my-gptel-sessions--highlight-current))
+
+(defface my-gptel-sessions-current
+  '((t :inherit highlight))
+  "Face for the row of the gptel buffer in the selected window.")
+
+(defvar my-gptel-sessions--current-ov nil
+  "Overlay highlighting the row of the selected window's gptel buffer.")
+
+(defun my-gptel-sessions--highlight-current (&optional _frame)
+  "Highlight the row of the gptel buffer shown in the selected window.
+When the sessions list itself is selected, use the most recently
+selected other window instead."
+  (when-let* ((sess (get-buffer my-gptel-sessions-buffer))
+              ((get-buffer-window sess t))
+              (win (if (eq (window-buffer) sess)
+                       (get-mru-window nil nil t)
+                     (selected-window)))
+              (buf (window-buffer win)))
+    (with-current-buffer sess
+      (unless (overlayp my-gptel-sessions--current-ov)
+        (setq my-gptel-sessions--current-ov (make-overlay 1 1))
+        (overlay-put my-gptel-sessions--current-ov
+                     'face 'my-gptel-sessions-current))
+      (if-let* (((buffer-local-value 'gptel-mode buf))
+                (pos (text-property-any (point-min) (point-max)
+                                        'tabulated-list-id buf)))
+          (save-excursion
+            (goto-char pos)
+            (move-overlay my-gptel-sessions--current-ov
+                          (line-beginning-position)
+                          (min (point-max) (1+ (line-end-position))) sess))
+        (delete-overlay my-gptel-sessions--current-ov)))))
+
+(add-hook 'window-selection-change-functions
+          #'my-gptel-sessions--highlight-current)
+(add-hook 'window-buffer-change-functions
+          #'my-gptel-sessions--highlight-current)
 
 (defun my-gptel-sessions--fit-after-revert (&rest _)
   "Refit the sessions window after \\`g' (`revert-buffer').
@@ -476,7 +523,8 @@ Coalesces bursts of transitions into one redraw 0.2 s later."
     (my-gptel-sessions--start-timer)
     (tabulated-list-print t)
     (pop-to-buffer (current-buffer))
-    (my-gptel-sessions--fit t)))
+    (my-gptel-sessions--fit t)
+    (my-gptel-sessions--highlight-current)))
 #+END_SRC
 
 * Provide
