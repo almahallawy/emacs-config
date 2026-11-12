@@ -786,6 +786,15 @@ Remote files (C-x C-f /ssh:user@host:path, and the remote shells above).
 - After a disconnect: M-x tramp-cleanup-this-connection, then retry.
 - Dead host also logs "Could not retrieve `tramp-own-remote-path'" in
   *Warnings*: harmless, it's the failed connect.
+- Same warning (plus "Host name ... does not match <local host>") from a
+  sudo path without an ssh hop, e.g. /sudo:user@remote:.  sudo runs only
+  locally; for root on a remote host use /ssh:user@host|sudo::/path.
+  Typing such a path in C-x C-f is enough to create the connection.
+- tramp-cleanup-connection fails on that broken connection (clearing the
+  password needs the hop chain, which errors).  Skip the password step:
+    (tramp-cleanup-connection
+     (tramp-dissect-file-name "/sudo:user@remote:") nil 'keep-password)
+  or M-x tramp-cleanup-all-connections (drops every connection).
 
 ~/.ssh/config (copy, not tangled; create it with mode 600).  General
 settings for every host, so new test machines need no entry.  Tested on
