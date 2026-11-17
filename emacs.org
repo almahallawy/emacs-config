@@ -6,6 +6,7 @@
 
 * Generate the emacs configuration file
 Nothing to do by hand.  The repo's .emacs (hand-written, not tangled; see
+the file itself) tangles emacs.org and my-gptel.org at startup
 whenever their .el output is missing or older, then loads kia-config and
 compiles my-gptel*.el.  C-c C-v t still works for applying a change without
 restarting.
@@ -561,7 +562,8 @@ Requires pandoc for preview/export (see Prerequisites).
 
 * gptel
 gptel settings live in my-gptel.org, which tangles to my-gptel.el.
-This section only loads it, plus any private my-gptel-*.el (e.g. from
+This section only loads it, plus any private my-gptel-*.el (e.g. from a
+private org file), and byte-compiles my-gptel*.el after every tangle.
 .emacs sets load-prefer-newer, so a stale .elc is never loaded over a newer
 .el.
 #+BEGIN_SRC emacs-lisp

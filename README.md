@@ -1,6 +1,7 @@
-# emacs
+# emacs-config
 
-My Emacs configuration, written as a literate Org file.
+My Emacs configuration, written as literate Org files, including my gptel
+(LLM chat) setup and extensions.
 
 ## Files
 
@@ -13,8 +14,7 @@ My Emacs configuration, written as a literate Org file.
 | `my-gptel.org` | gptel settings and personal extensions. Loaded from `emacs.org` (section *gptel*). | yes |
 | `my-gptel.el` | Generated from `my-gptel.org`. | no |
 | `my-gptel.elc` | Compiled `my-gptel.el`, rebuilt automatically after each tangle. | no |
-| `cscope-update`, `ec` | Helper scripts. | yes |
-| `emacs-gdb.txt` | Notes on debugging Emacs with gdb. | yes |
+| `my-gptel-*.el` | Optional private gptel extensions (not in this repo); loaded automatically if present. | no |
 
 Never edit `kia-config.el`, `emacs_bash` or `my-gptel*.el` by hand. They are
 overwritten on every tangle. Edit the `.org` files; `.emacs` is the only
@@ -43,15 +43,17 @@ hand-edited code file.
    ```elisp
    (load "~/src/emacs-config/.emacs")
    ```
-4. **Start Emacs.** The first start tangles `emacs.org`, `my-gptel.org` and
+4. **Start Emacs.** The first start tangles `emacs.org` and `my-gptel.org`,
+   installs packages from MELPA/GNU ELPA and compiles
    `my-gptel*.el`. Takes a minute; later starts are normal.
 5. **Shell (optional):** `ln -s ~/src/emacs-config/emacs_bash ~/.emacs_bash`
    (see `emacs.org`, *Shell > ~/.emacs_bash*). Needed for prompt colours and
    directory tracking in `M-x shell` and `M-x ssh`; remote hosts need nothing.
-6. **Secrets** go in `~/.authinfo.gpg` (never in this repo), e.g. tokens
+6. **Secrets** go in `~/.authinfo.gpg` (never in this repo).
 
 ## Day-to-day: changing the config
 
+1. Edit `emacs.org` or `my-gptel.org`.
 2. Restart Emacs: `.emacs` re-tangles the changed `.org` and recompiles.
    Or, to apply without restarting: `C-c C-v t` in that org buffer (tangles,
    and compiles `my-gptel*.el`), then eval the changed block.
@@ -93,18 +95,17 @@ Settings and personal additions are in `my-gptel.org`:
 |---------------|--------------|
 | `M-x my-gptel-sessions` | List all gptel buffers and running requests/sub-agents. `RET` visit, `k` abort, `u` toggle unleash, `g` refresh. |
 | `C-c C-u` (in a gptel buffer) | Toggle tool-call confirmation for this buffer only ("unleash"). |
-| `M-x my-gptel-gh-reset-token` | Clear the cached Copilot session token. Use after switching VPN on/off if Copilot returns **HTTP 403**. |
+| `M-x my-gptel-gh-reset-token` | Clear the cached Copilot session token. Use after a network change (e.g. VPN on/off) if Copilot returns **HTTP 403**. |
 
 Text yanked into a gptel buffer, or copied/killed out of one, is stripped of
 gptel's internal properties, so pasting part of a response doesn't turn into
 a bogus assistant turn or tool call.
 
-
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| Copilot: HTTP 403 after VPN on/off | `M-x my-gptel-gh-reset-token`, then retry. |
+| Copilot: HTTP 403 after a network change | `M-x my-gptel-gh-reset-token`, then retry. |
 | A config change has no effect | Restart Emacs (or `C-c C-v t` and eval the block). |
 | Startup error after a change | Fix the `.org`, then `C-c C-v t` in it (or `touch` it and restart). |
 

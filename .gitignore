@@ -18,3 +18,5 @@ my-default.el.*
 
 # gptel chat files
 *.gptel
+my-gptel-*.el
+my-gptel-*.org

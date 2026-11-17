@@ -1,4 +1,4 @@
-;;; .emacs --- Bootstrap for ~/src/emacs-config -*- lexical-binding: t -*-
+;;; .emacs --- Bootstrap for ~/src/emacs -*- lexical-binding: t -*-
 ;; Loaded from ~/.emacs with: (load "~/src/emacs-config/.emacs")
 ;; Hand-written, not tangled.
 
